@@ -1,0 +1,43 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main ]  # Triggers on push to 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/server/Am-I-Being-Carried
+            
+            # Pull latest code
+            export GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519_github -F /dev/null -o IdentitiesOnly=yes"
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+                        
+            # Install dependencies
+            source .venv/bin/activate
+            pip3 install -r dependencies.txt
+            
+            # SECURELY CREATE .ENV FILE
+            cat > .env << EOF
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            SECRET_KEY=${{ secrets.DATABASE_URL }}
+            FLASK_ENV=production
+            EOF
+            
+            chmod 600 .env
+            
+            # Restart the service
+            sudo systemctl restart Am-I-Being-Carried
