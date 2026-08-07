@@ -317,11 +317,6 @@
             const platformId = button.dataset.platform;
             document.getElementById('selectedPlatform').value = platformId;
             
-            // Update status message
-            const statusEl = document.getElementById('platformStatus');
-            statusEl.textContent = `✅ Selected: ${button.textContent.trim()}`;
-            statusEl.style.color = 'green';
-            
             console.log('Selected platform:', platformId);
         }
 
