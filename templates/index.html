@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+
+{% block title %}Home - Am I Being Carried{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4><i class="fas fa-search"></i> Search through your recent games </h4>
+            </div>
+            <div class="card-body">
+                <form id="apiForm" onsubmit="event.preventDefault(); submitApiForm('apiForm')">
+                    <div class="mb-3">
+                        <label for="epicUsername" class="form-label">Epic Username</label>
+                        <input type="text" class="form-control" id="epicUsername" name="params" 
+                               placeholder='Epic Username' value='{"page": 1, "limit": 10}'>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Search
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5><i class="fas fa-info-circle"></i> Instructions</h5>
+            </div>
+            <div class="card-body">
+                <p>This app searches for your epic username and then looks at your recent games.</p>
+                <ul>
+                    <li>Click "Search" to fetch data</li>
+                    <li>On success, you'll be redirected to the results page</li>
+                    <li>The results page will display the fetched data</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

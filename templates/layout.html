@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Am I Being Carried?{% endblock %}</title>
+    
+    <!-- Bootstrap CSS for styling -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        /* Preloader styles */
+        #preloader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Error alert */
+        .alert-error {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            min-width: 300px;
+        }
+        
+        /* Card hover effects */
+        .card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        /* Navbar customization */
+        .navbar-brand {
+            font-weight: bold;
+        }
+        
+        .nav-link {
+            cursor: pointer;
+        }
+        
+        /* Content fade-in */
+        .content-section {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Preloader -->
+    <div id="preloader">
+        <div class="spinner"></div>
+        <p class="mt-3">Looking at your games...</p>
+    </div>
+    
+    <!-- Error Alert -->
+    <div id="errorAlert" class="alert alert-danger alert-error">
+        <strong><i class="fas fa-exclamation-circle"></i> Error!</strong>
+        <span id="errorMessage">Failed to fetch data. Please try again.</span>
+        <button type="button" class="btn-close" onclick="hideError()"></button>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-database"></i> Am I Being Carried?
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="fas fa-home"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="handleApiQuery()">
+                            <i class="fas fa-sync"></i> Find Out
+                        </a>
+                    </li>
+                    {% if session.get('data_fetched') %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('results') }}">
+                            <i class="fas fa-chart-bar"></i> Results
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="content-section">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <!-- Main Content Block -->
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3 bg-light fixed-bottom">
+        <div class="container text-center">
+            <span class="text-muted">© 2026 Am I Being Carried</span>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        // Show preloader
+        function showPreloader() {
+            document.getElementById('preloader').style.display = 'flex';
+        }
+        
+        // Hide preloader
+        function hidePreloader() {
+            document.getElementById('preloader').style.display = 'none';
+        }
+        
+        // Show error
+        function showError(message) {
+            const alert = document.getElementById('errorAlert');
+            document.getElementById('errorMessage').textContent = message || 'Failed to fetch data. Please try again.';
+            alert.style.display = 'block';
+            setTimeout(() => {
+                hideError();
+            }, 5000);
+        }
+        
+        // Hide error
+        function hideError() {
+            document.getElementById('errorAlert').style.display = 'none';
+        }
+        
+        // Handle API Query
+        async function handleApiQuery() {
+            showPreloader();
+            
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        // Add any data you need to send to the API
+                        query: 'fetch_data'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Redirect to results page
+                    window.location.href = '{{ url_for("results") }}';
+                } else {
+                    showError(data.message || 'API request failed');
+                    hidePreloader();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Network error. Please check your connection.');
+                hidePreloader();
+            }
+        }
+        
+        // Auto-hide error after 5 seconds if visible
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if there are flash messages and auto-hide them after 5 seconds
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.alert:not(#errorAlert)');
+                alerts.forEach(alert => {
+                    const closeBtn = alert.querySelector('.btn-close');
+                    if (closeBtn) {
+                        setTimeout(() => {
+                            closeBtn.click();
+                        }, 5000);
+                    }
+                });
+            }, 1000);
+        });
+        
+        // Optional: Function to submit form via AJAX
+        async function submitApiForm(formId) {
+            const form = document.getElementById(formId);
+            if (!form) return;
+            
+            showPreloader();
+            
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.location.href = '{{ url_for("results") }}';
+                } else {
+                    showError(result.message);
+                    hidePreloader();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('An error occurred while processing your request.');
+                hidePreloader();
+            }
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
