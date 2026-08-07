@@ -33,7 +33,7 @@ jobs:
             # SECURELY CREATE .ENV FILE
             cat > .env << EOF
             SECRET_KEY=${{ secrets.SECRET_KEY }}
-            SECRET_KEY=${{ secrets.DATABASE_URL }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
             FLASK_ENV=production
             EOF
             
