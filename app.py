@@ -12,7 +12,7 @@ load_dotenv()
 
 # Configure application
 app = Flask(__name__)
-# app.config.from_object(Config) # Ensure Config contains your postgres DATABASE_URL
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 app.secret_key = os.getenv("SECRET_KEY")
