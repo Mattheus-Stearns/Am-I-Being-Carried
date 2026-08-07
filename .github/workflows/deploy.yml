@@ -35,6 +35,7 @@ jobs:
             SECRET_KEY=${{ secrets.SECRET_KEY }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             API_KEY=${{ secrets.API_KEY }}
+            AUTHORIZED_IPS=${{ secrets.AUTHORIZED_IPS }}
             FLASK_ENV=production
             EOF
             

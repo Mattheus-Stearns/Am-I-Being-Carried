@@ -1,13 +1,11 @@
 # Importing key Libraries
 
 import os
-import uuid
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
-import json
 import requests
 from datetime import datetime, timedelta, timezone, time
 from flask_limiter import Limiter
@@ -23,22 +21,62 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 app.secret_key = os.getenv("SECRET_KEY")
 
-# Configure Redis
+# Redis connection
 redis_client = redis.Redis(
-    host='localhost',
-    port=6379,
-    db=0,
+    host=os.getenv('REDIS_HOST', 'localhost'),
+    port=int(os.getenv('REDIS_PORT', 6379)),
+    db=int(os.getenv('REDIS_DB', 0)),
     decode_responses=True
 )
 
+WHITELIST_KEY = 'authorized_ips'
+
+def load_authorized_ips():
+    """Load authorized IPs from .env into Redis"""
+    # Get IPs from .env
+    ips_string = os.getenv('AUTHORIZED_IPS', '')
+    ips = [ip.strip() for ip in ips_string.split(',') if ip.strip()]
+    
+    # Clear existing
+    redis_client.delete(WHITELIST_KEY)
+    
+    # Add IPs to Redis
+    if ips:
+        redis_client.sadd(WHITELIST_KEY, *ips)
+        print(f"✅ Loaded {len(ips)} authorized IPs from .env")
+        print(f"   IPs: {ips}")
+    else:
+        print("⚠️ No authorized IPs found in .env")
+    
+    return ips
+
+def is_ip_authorized(ip):
+    """Check if IP is authorized"""
+    if not ip:
+        return False
+    return redis_client.sismember(WHITELIST_KEY, ip)
+
+def get_client_ip():
+    """Get client IP behind nginx"""
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0]
+    return request.remote_addr
+
 # Initialize rate limiter with Redis
 limiter = Limiter(
-    key_func=get_remote_address,  # Gets IP automatically
+    key_func=get_remote_address,
     app=app,
     storage_uri="redis://localhost:6379/0",
-    default_limits=["10 per day", "2 per hour"],
+    default_limits=["100 per minute"],
 )
 
+# Exempt authorized IPs from rate limiting
+@limiter.request_filter
+def ip_authorized_filter():
+    client_ip = get_client_ip()
+    return is_ip_authorized(client_ip)
+
+# Error handler for rate limit
 @app.errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({
@@ -92,6 +130,7 @@ class APICallLog(db.Model):
 
 # Create tables when the app starts
 with app.app_context():
+    load_authorized_ips()
     try:
         db.create_all()
         print("Database tables created/verified successfully!")
