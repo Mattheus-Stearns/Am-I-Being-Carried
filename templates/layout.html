@@ -276,11 +276,6 @@
                     const platformId = this.dataset.platform;
                     document.getElementById('selectedPlatform').value = platformId;
                     
-                    // Update status
-                    document.getElementById('platformStatus').textContent = 
-                        `✅ Selected: ${this.textContent.trim()}`;
-                    document.getElementById('platformStatus').style.color = 'green';
-                    
                     console.log('Selected platform:', platformId);
                 });
             });
