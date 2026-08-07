@@ -316,7 +316,7 @@ def refresh_data():
             return jsonify({'success': False, 'message': 'Server configuration error'})
         
         response = requests.get(
-            "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_profile",
+            "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions",
             headers={
                 "X-API-Key": api_key,
                 "API-Snapshot-Version": "6"
