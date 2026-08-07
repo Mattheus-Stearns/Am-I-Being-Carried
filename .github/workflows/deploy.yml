@@ -34,6 +34,7 @@ jobs:
             cat > .env << EOF
             SECRET_KEY=${{ secrets.SECRET_KEY }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
+            API_KEY=${{ secrets.API_KEY }}
             FLASK_ENV=production
             EOF
             

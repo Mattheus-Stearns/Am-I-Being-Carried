@@ -1,36 +1,195 @@
 {% extends "layout.html" %}
 
-{% block title %}Results - Am I Being Carried{% endblock %}
+{% block title %}Results - Am I Being Carried App{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
+        <!-- Status Banner -->
+        <div class="alert {% if from_cache %}alert-info{% else %}alert-success{% endif %} mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas {% if from_cache %}fa-database{% else %}fa-cloud-download-alt{% endif %}"></i>
+                    {% if from_cache %}
+                        <strong>Cached Data</strong> - Showing data from {{ last_updated or 'previous search' }}
+                    {% else %}
+                        <strong>Fresh Data</strong> - Just fetched from API
+                    {% endif %}
+                    <span class="badge bg-secondary ms-2">{{ platform|upper }} / {{ username }}</span>
+                </div>
+                <div>
+                    <button onclick="refreshData()" class="btn btn-sm btn-warning me-2">
+                        <i class="fas fa-sync"></i> Refresh Data
+                    </button>
+                    <button onclick="clearAndSearch()" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-search"></i> New Search
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Display Card -->
         <div class="card">
-            <div class="card-header bg-success text-white">
-                <h4><i class="fas fa-check-circle"></i> Am I Being Carried Results</h4>
+            <div class="card-header bg-primary text-white">
+                <h4><i class="fas fa-chart-bar"></i> Player Profile Results</h4>
             </div>
             <div class="card-body">
                 {% if data %}
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
-                           
+                            <thead>
+                                <tr>
+                                    {% for key in data.keys() %}
+                                        <th>{{ key|capitalize|replace('_', ' ') }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    {% for value in data.values() %}
+                                        <td>
+                                            {% if value is mapping %}
+                                                <pre class="mb-0"><code>{{ value|tojson(indent=2) }}</code></pre>
+                                            {% elif value is iterable and value is not string %}
+                                                <ul class="mb-0">
+                                                    {% for item in value %}
+                                                        <li>{{ item }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% else %}
+                                                {{ value }}
+                                            {% endif %}
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                 {% else %}
                     <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i> No data available. Please search your epic username first.
+                        <i class="fas fa-exclamation-triangle"></i> No data available. Please perform a search.
                     </div>
                 {% endif %}
             </div>
             <div class="card-footer">
-                <a href="{{ url_for('index') }}" class="btn btn-primary">
-                    <i class="fas fa-arrow-left"></i> Back to Home
-                </a>
-                <button onclick="handleApiQuery()" class="btn btn-success">
-                    <i class="fas fa-sync"></i> Refresh Data
-                </button>
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i> New Search
+                    </a>
+                    <button onclick="refreshData()" class="btn btn-success">
+                        <i class="fas fa-sync"></i> Refresh from API
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug/Info Section (optional) -->
+        <div class="card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h6><i class="fas fa-info-circle"></i> Session Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Platform:</strong> {{ platform|upper }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Username:</strong> {{ username }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Data Source:</strong> 
+                        <span class="badge {% if from_cache %}bg-info{% else %}bg-success{% endif %}">
+                            {{ 'Cache' if from_cache else 'API' }}
+                        </span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Last Updated:</strong> {{ last_updated or 'N/A' }}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Function to refresh data
+async function refreshData() {
+    if (!confirm('This will make a new API call and use one credit. Continue?')) {
+        return;
+    }
+    
+    showPreloader();
+    
+    try {
+        const response = await fetch('/api/refresh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                platform_id: '{{ platform }}',
+                username: '{{ username }}'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Reload page to show fresh data
+            window.location.reload();
+        } else {
+            showError(result.message || 'Failed to refresh data');
+            hidePreloader();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showError('An error occurred while refreshing data.');
+        hidePreloader();
+    }
+}
+
+// Function to clear session and go back to search
+function clearAndSearch() {
+    if (confirm('This will clear your current search results. Continue?')) {
+        fetch('/api/clear_session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        }).then(() => {
+            window.location.href = '{{ url_for("index") }}';
+        }).catch(error => {
+            console.error('Error clearing session:', error);
+            window.location.href = '{{ url_for("index") }}';
+        });
+    }
+}
+
+// Show last updated time in human readable format
+document.addEventListener('DOMContentLoaded', function() {
+    const lastUpdated = '{{ last_updated }}';
+    if (lastUpdated) {
+        const date = new Date(lastUpdated);
+        const timeAgo = timeSince(date);
+        document.querySelector('.alert .badge:not(.bg-secondary)')?.textContent += ` (${timeAgo})`;
+    }
+});
+
+function timeSince(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + ' years ago';
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + ' months ago';
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + ' days ago';
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + ' hours ago';
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + ' minutes ago';
+    return Math.floor(seconds) + ' seconds ago';
+}
+</script>
 {% endblock %}

@@ -79,6 +79,95 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        /* Platform button styling */
+        .game-btn {
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .game-btn i {
+            font-size: 1.8rem;
+            margin-bottom: 6px;
+        }
+
+        .game-btn.active {
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(0,123,255,0.4);
+            border-width: 2px;
+        }
+
+        .game-btn:not(.active):hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Different colors for different platforms (optional) */
+        .game-btn[data-game-id="steam"].active {
+            background-color: #1b2838;
+            border-color: #1b2838;
+            color: white;
+        }
+
+        .game-btn[data-game-id="epic"].active {
+            background-color: #2a2a2a;
+            border-color: #2a2a2a;
+            color: white;
+        }
+
+        .game-btn[data-game-id="xbox"].active {
+            background-color: #107c10;
+            border-color: #107c10;
+            color: white;
+        }
+
+        .game-btn[data-game-id="psn"].active {
+            background-color: #003087;
+            border-color: #003087;
+            color: white;
+        }
+
+        /* Remove the different colors if you want uniform selection */
+        /* .game-btn.active {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        } */
+
+        /* Pulse animation for selected button */
+        .game-btn.active {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { 
+                box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4);
+            }
+            70% { 
+                box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+            }
+            100% { 
+                box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 576px) {
+            .game-btn {
+                height: 60px;
+                font-size: 0.9rem;
+            }
+            .game-btn i {
+                font-size: 1.2rem;
+            }
+        }
+
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -162,88 +251,59 @@
     
     <!-- Custom JavaScript -->
     <script>
-        // Show preloader
-        function showPreloader() {
-            document.getElementById('preloader').style.display = 'flex';
-        }
-        
-        // Hide preloader
-        function hidePreloader() {
-            document.getElementById('preloader').style.display = 'none';
-        }
-        
-        // Show error
-        function showError(message) {
-            const alert = document.getElementById('errorAlert');
-            document.getElementById('errorMessage').textContent = message || 'Failed to fetch data. Please try again.';
-            alert.style.display = 'block';
-            setTimeout(() => {
-                hideError();
-            }, 5000);
-        }
-        
-        // Hide error
-        function hideError() {
-            document.getElementById('errorAlert').style.display = 'none';
-        }
-        
-        // Handle API Query
-        async function handleApiQuery() {
-            showPreloader();
+        // Track selected platform
+        let selectedPlatformId = null;
+
+        // Function to handle platform selection (only one at a time)
+        function selectPlatform(button) {
+            // Get all platform buttons
+            const allButtons = document.querySelectorAll('.game-btn');
             
-            try {
-                const response = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        // Add any data you need to send to the API
-                        query: 'fetch_data'
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Redirect to results page
-                    window.location.href = '{{ url_for("results") }}';
-                } else {
-                    showError(data.message || 'API request failed');
-                    hidePreloader();
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showError('Network error. Please check your connection.');
-                hidePreloader();
-            }
+            // Remove 'active' class and reset all buttons
+            allButtons.forEach(btn => {
+                btn.classList.remove('active', 'btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+            
+            // Activate the clicked button
+            button.classList.remove('btn-outline-primary');
+            button.classList.add('active', 'btn-primary');
+            
+            // Store the selected platform ID in the hidden input
+            selectedPlatformId = button.dataset.gameId;
+            document.getElementById('selectedPlatform').value = selectedPlatformId;
+            
+            console.log('Selected platform:', selectedPlatformId);
         }
-        
-        // Auto-hide error after 5 seconds if visible
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if there are flash messages and auto-hide them after 5 seconds
-            setTimeout(() => {
-                const alerts = document.querySelectorAll('.alert:not(#errorAlert)');
-                alerts.forEach(alert => {
-                    const closeBtn = alert.querySelector('.btn-close');
-                    if (closeBtn) {
-                        setTimeout(() => {
-                            closeBtn.click();
-                        }, 5000);
-                    }
-                });
-            }, 1000);
-        });
-        
-        // Optional: Function to submit form via AJAX
+
+        // Modified submit function with platform validation
         async function submitApiForm(formId) {
             const form = document.getElementById(formId);
             if (!form) return;
+            
+            // Validate that a platform is selected
+            const platformId = document.getElementById('selectedPlatform').value;
+            if (!platformId) {
+                showError('Please select a platform before searching.');
+                return;
+            }
+            
+            // Validate username
+            const username = document.getElementById('username').value.trim();
+            if (!username) {
+                showError('Please enter a username.');
+                return;
+            }
             
             showPreloader();
             
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
+            
+            // Add platform ID to the data
+            data.platform_id = platformId;
+            
+            console.log('Submitting with:', data);
             
             try {
                 const response = await fetch('/api/query', {
@@ -257,6 +317,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
+                    // Store data in session or redirect
                     window.location.href = '{{ url_for("results") }}';
                 } else {
                     showError(result.message);
@@ -265,6 +326,114 @@
             } catch (error) {
                 console.error('Error:', error);
                 showError('An error occurred while processing your request.');
+                hidePreloader();
+            }
+        }
+
+        // Show preloader
+        function showPreloader() {
+            document.getElementById('preloader').style.display = 'flex';
+        }
+
+        // Hide preloader
+        function hidePreloader() {
+            document.getElementById('preloader').style.display = 'none';
+        }
+
+        // Show error
+        function showError(message) {
+            const alert = document.getElementById('errorAlert');
+            document.getElementById('errorMessage').textContent = message || 'Failed to fetch data. Please try again.';
+            alert.style.display = 'block';
+            setTimeout(() => {
+                hideError();
+            }, 5000);
+        }
+
+        // Hide error
+        function hideError() {
+            document.getElementById('errorAlert').style.display = 'none';
+        }
+
+        // Optional: Add keyboard support and visual feedback
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add hover effects
+            document.querySelectorAll('.game-btn').forEach(btn => {
+                btn.addEventListener('mouseenter', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.transform = 'scale(1.05)';
+                        this.style.transition = 'transform 0.2s';
+                    }
+                });
+                btn.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                });
+            });
+            
+            // Allow Enter key to submit form
+            document.getElementById('username').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('apiForm').dispatchEvent(new Event('submit'));
+                }
+            });
+            
+            // Optional: Preselect a platform if needed (e.g., from session or URL)
+            // Uncomment and modify as needed:
+            // const defaultPlatform = '{{ session.get("default_platform", "") }}';
+            // if (defaultPlatform) {
+            //     preselectPlatform(defaultPlatform);
+            // }
+        });
+
+        // Function to clear selection (optional)
+        function clearPlatformSelection() {
+            const allButtons = document.querySelectorAll('.game-btn');
+            allButtons.forEach(btn => {
+                btn.classList.remove('active', 'btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+            document.getElementById('selectedPlatform').value = '';
+            selectedPlatformId = null;
+        }
+
+        // Function to pre-select a platform (useful for editing or default values)
+        function preselectPlatform(platformId) {
+            const buttons = document.querySelectorAll('.game-btn');
+            buttons.forEach(btn => {
+                if (btn.dataset.gameId === platformId) {
+                    selectPlatform(btn);
+                }
+            });
+        }
+
+        // Optional: Handle API Query directly (if you still need this function)
+        async function handleApiQuery() {
+            showPreloader();
+            
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        platform_id: document.getElementById('selectedPlatform').value,
+                        username: document.getElementById('username').value.trim()
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = '{{ url_for("results") }}';
+                } else {
+                    showError(data.message || 'API request failed');
+                    hidePreloader();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Network error. Please check your connection.');
                 hidePreloader();
             }
         }

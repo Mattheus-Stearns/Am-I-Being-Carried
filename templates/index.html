@@ -7,33 +7,68 @@
     <div class="col-md-8 offset-md-2">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h4><i class="fas fa-search"></i> Search through your recent games </h4>
+                <h4><i class="fas fa-search"></i> Search through your recent games</h4>
             </div>
             <div class="card-body">
                 <form id="apiForm" onsubmit="event.preventDefault(); submitApiForm('apiForm')">
+                    
                     <div class="mb-3">
-                        <label for="epicUsername" class="form-label">Epic Username</label>
-                        <input type="text" class="form-control" id="epicUsername" name="params" 
-                               placeholder='Epic Username' value='{"page": 1, "limit": 10}'>
+                        <label class="form-label fw-bold">Select a Platform:</label>
+                        <div class="row g-2" id="platformButtonGroup">
+                            <div class="col-6 col-md-3">
+                                <button type="button" class="btn btn-outline-primary w-100 game-btn" data-game-id="steam" onclick="selectPlatform(this)">
+                                    <i class="fab fa-steam"></i><br>
+                                    Steam
+                                </button>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <button type="button" class="btn btn-outline-primary w-100 game-btn" data-game-id="epic" onclick="selectPlatform(this)">
+                                    <i class="fas fa-gamepad"></i><br>
+                                    Epic
+                                </button>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <button type="button" class="btn btn-outline-primary w-100 game-btn" data-game-id="xbox" onclick="selectPlatform(this)">
+                                    <i class="fab fa-xbox"></i><br>
+                                    Xbox
+                                </button>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <button type="button" class="btn btn-outline-primary w-100 game-btn" data-game-id="psn" onclick="selectPlatform(this)">
+                                    <i class="fab fa-playstation"></i><br>
+                                    PlayStation
+                                </button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="selectedPlatform" name="platform_id" value="">
+                        <small class="text-muted">Select one platform to search</small>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username:</label>
+                        <input type="text" class="form-control" id="username" name="username" 
+                               placeholder="Enter username" required>
+                    </div>
+
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-play"></i> Search
                     </button>
+                    
+                    <!-- Check if we have session data to show recent search -->
+                    {% if session.get('api_data') %}
+                    <div class="mt-3">
+                        <div class="alert alert-info">
+                            <i class="fas fa-history"></i> 
+                            You have a previous search for 
+                            <strong>{{ session.get('platform', '').upper() }}</strong> / 
+                            <strong>{{ session.get('username', '') }}</strong>
+                            <a href="{{ url_for('results') }}" class="btn btn-sm btn-info ms-2">
+                                View Results
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
                 </form>
-            </div>
-        </div>
-        
-        <div class="card mt-4">
-            <div class="card-header bg-info text-white">
-                <h5><i class="fas fa-info-circle"></i> Instructions</h5>
-            </div>
-            <div class="card-body">
-                <p>This app searches for your epic username and then looks at your recent games.</p>
-                <ul>
-                    <li>Click "Search" to fetch data</li>
-                    <li>On success, you'll be redirected to the results page</li>
-                    <li>The results page will display the fetched data</li>
-                </ul>
             </div>
         </div>
     </div>
