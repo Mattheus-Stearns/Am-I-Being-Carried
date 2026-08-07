@@ -40,9 +40,9 @@ class PlayerProfile(db.Model):
     platform = db.Column(db.String(50), nullable=False)
     username = db.Column(db.String(100), nullable=False)
     data = db.Column(db.JSON, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_accessed = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now(datetime.timezone.utc))
+    updated_at = db.Column(db.DateTime, default=datetime.now(datetime.timezone.utc), onupdate=datetime.now(datetime.timezone.utc))
+    last_accessed = db.Column(db.DateTime, default=datetime.now(datetime.timezone.utc))
     api_call_count = db.Column(db.Integer, default=1)
     session_id = db.Column(db.String(255))  # Store session ID for tracking
     
@@ -138,12 +138,12 @@ def query_api():
         # If data exists in database and not forcing refresh
         if existing_profile and not force_refresh:
             # Check if data is recent (e.g., less than 24 hours old)
-            time_since_update = datetime.utcnow() - existing_profile.updated_at
+            time_since_update = datetime.now(datetime.timezone.utc) - existing_profile.updated_at
             cache_duration = timedelta(hours=24)
             
             if time_since_update < cache_duration:
                 # Update last accessed time
-                existing_profile.last_accessed = datetime.utcnow()
+                existing_profile.last_accessed = datetime.now(datetime.timezone.utc)
                 existing_profile.session_id = session.sid if hasattr(session, 'sid') else None
                 db.session.commit()
                 
@@ -189,8 +189,8 @@ def query_api():
             # Save to database
             if existing_profile:
                 existing_profile.data = data
-                existing_profile.updated_at = datetime.utcnow()
-                existing_profile.last_accessed = datetime.utcnow()
+                existing_profile.updated_at = datetime.now(datetime.timezone.utc)
+                existing_profile.last_accessed = datetime.now(datetime.timezone.utc)
                 existing_profile.api_call_count += 1
                 existing_profile.session_id = session.sid if hasattr(session, 'sid') else None
             else:
@@ -198,9 +198,9 @@ def query_api():
                     platform=platform,
                     username=username,
                     data=data,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
-                    last_accessed=datetime.utcnow(),
+                    created_at=datetime.now(datetime.timezone.utc),
+                    updated_at=datetime.now(datetime.timezone.utc),
+                    last_accessed=datetime.now(datetime.timezone.utc),
                     session_id=session.sid if hasattr(session, 'sid') else None
                 )
                 db.session.add(new_profile)
@@ -212,7 +212,7 @@ def query_api():
             session['platform'] = platform
             session['username'] = username
             session['from_cache'] = False
-            session['last_updated'] = datetime.utcnow().isoformat()
+            session['last_updated'] = datetime.now(datetime.timezone.utc).isoformat()
             
             return jsonify({
                 'success': True,
@@ -272,15 +272,15 @@ def refresh_data():
             
             if existing_profile:
                 existing_profile.data = data
-                existing_profile.updated_at = datetime.utcnow()
+                existing_profile.updated_at = datetime.now(datetime.timezone.utc)
                 existing_profile.api_call_count += 1
             else:
                 new_profile = PlayerProfile(
                     platform=platform,
                     username=username,
                     data=data,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=datetime.now(datetime.timezone.utc),
+                    updated_at=datetime.now(datetime.timezone.utc),
                     session_id=session.sid if hasattr(session, 'sid') else None
                 )
                 db.session.add(new_profile)
@@ -290,7 +290,7 @@ def refresh_data():
             # Update session
             session['api_data'] = data
             session['from_cache'] = False
-            session['last_updated'] = datetime.utcnow().isoformat()
+            session['last_updated'] = datetime.now(datetime.timezone.utc).isoformat()
             
             return jsonify({
                 'success': True,
