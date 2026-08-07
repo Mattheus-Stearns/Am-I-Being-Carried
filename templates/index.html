@@ -12,48 +12,49 @@
             <div class="card-body">
                 <form id="apiForm" onsubmit="event.preventDefault(); submitApiForm('apiForm')">
                     
-                    <div class="mb-3">
+                   <div class="mb-3">
                         <label class="form-label fw-bold">Select a Platform:</label>
                         <div class="row g-2" id="platformButtonGroup">
                             <div class="col-6 col-md-3">
-                                <button type="button" class="btn btn-outline-primary w-100 game-btn" data-game-id="steam" onclick="selectPlatform(this)">
+                                <button type="button" class="btn btn-outline-primary w-100 platform-btn" data-platform="steam" onclick="selectPlatform(this)">
                                     <i class="fab fa-steam"></i><br>
                                     Steam
                                 </button>
                             </div>
                             <div class="col-6 col-md-3">
-                                <button type="button" class="btn btn-outline-primary w-100 game-btn" data-game-id="epic" onclick="selectPlatform(this)">
+                                <button type="button" class="btn btn-outline-primary w-100 platform-btn" data-platform="epic" onclick="selectPlatform(this)">
                                     <i class="fas fa-gamepad"></i><br>
                                     Epic
                                 </button>
                             </div>
                             <div class="col-6 col-md-3">
-                                <button type="button" class="btn btn-outline-primary w-100 game-btn" data-game-id="xbox" onclick="selectPlatform(this)">
+                                <button type="button" class="btn btn-outline-primary w-100 platform-btn" data-platform="xbox" onclick="selectPlatform(this)">
                                     <i class="fab fa-xbox"></i><br>
                                     Xbox
                                 </button>
                             </div>
                             <div class="col-6 col-md-3">
-                                <button type="button" class="btn btn-outline-primary w-100 game-btn" data-game-id="psn" onclick="selectPlatform(this)">
+                                <button type="button" class="btn btn-outline-primary w-100 platform-btn" data-platform="psn" onclick="selectPlatform(this)">
                                     <i class="fab fa-playstation"></i><br>
                                     PlayStation
                                 </button>
                             </div>
                         </div>
+                        <!-- Hidden input to store selected platform -->
                         <input type="hidden" id="selectedPlatform" name="platform_id" value="">
-                        <small class="text-muted">Select one platform to search</small>
+                        <small class="text-muted" id="platformStatus">Select one platform to search</small>
                     </div>
                     
+                    <!-- Username Field -->
                     <div class="mb-3">
                         <label for="username" class="form-label">Username:</label>
                         <input type="text" class="form-control" id="username" name="username" 
-                               placeholder="Enter username" required>
+                            placeholder="Enter username" required>
                     </div>
 
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-play"></i> Search
                     </button>
-                    
                     <!-- Check if we have session data to show recent search -->
                     {% if session.get('api_data') %}
                     <div class="mt-3">
