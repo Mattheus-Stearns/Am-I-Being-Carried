@@ -40,4 +40,4 @@ jobs:
             chmod 600 .env
             
             # Restart the service
-            sudo systemctl restart Am-I-Being-Carried
+            sudo systemctl restart amibeingcarried
