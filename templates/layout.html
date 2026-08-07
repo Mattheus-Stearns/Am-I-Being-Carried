@@ -251,44 +251,17 @@
     
     <!-- Custom JavaScript -->
     <script>
-        // Track selected platform
-        let selectedPlatformId = null;
-
-        // Function to handle platform selection (only one at a time)
-        function selectPlatform(button) {
-            // Get all platform buttons
-            const allButtons = document.querySelectorAll('.game-btn');
-            
-            // Remove 'active' class and reset all buttons
-            allButtons.forEach(btn => {
-                btn.classList.remove('active', 'btn-primary');
-                btn.classList.add('btn-outline-primary');
-            });
-            
-            // Activate the clicked button
-            button.classList.remove('btn-outline-primary');
-            button.classList.add('active', 'btn-primary');
-            
-            // Store the selected platform ID in the hidden input
-            selectedPlatformId = button.dataset.gameId;
-            document.getElementById('selectedPlatform').value = selectedPlatformId;
-            
-            console.log('Selected platform:', selectedPlatformId);
-        }
-
-        // Modified submit function with platform validation
+        // Submit the form
         async function submitApiForm(formId) {
             const form = document.getElementById(formId);
             if (!form) return;
             
-            // Validate that a platform is selected
             const platformId = document.getElementById('selectedPlatform').value;
             if (!platformId) {
-                showError('Please select a platform before searching.');
+                showError('Please select a platform.');
                 return;
             }
             
-            // Validate username
             const username = document.getElementById('username').value.trim();
             if (!username) {
                 showError('Please enter a username.');
@@ -299,11 +272,6 @@
             
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
-            
-            // Add platform ID to the data
-            data.platform_id = platformId;
-            
-            console.log('Submitting with:', data);
             
             try {
                 const response = await fetch('/api/query', {
@@ -316,11 +284,19 @@
                 
                 const result = await response.json();
                 
+                // Check if rate limited
+                if (response.status === 429) {
+                    // Show rate limit error but keep page content
+                    showError(result.message || 'Rate limit exceeded. Please try again later.');
+                    hidePreloader();
+                    return;
+                }
+                
                 if (result.success) {
-                    // Store data in session or redirect
+                    // Store data in session and redirect
                     window.location.href = '{{ url_for("results") }}';
                 } else {
-                    showError(result.message);
+                    showError(result.message || 'Failed to fetch data');
                     hidePreloader();
                 }
             } catch (error) {
@@ -330,112 +306,21 @@
             }
         }
 
-        // Show preloader
-        function showPreloader() {
-            document.getElementById('preloader').style.display = 'flex';
-        }
-
-        // Hide preloader
-        function hidePreloader() {
-            document.getElementById('preloader').style.display = 'none';
-        }
-
-        // Show error
+        // Function to show error without clearing page content
         function showError(message) {
             const alert = document.getElementById('errorAlert');
-            document.getElementById('errorMessage').textContent = message || 'Failed to fetch data. Please try again.';
+            document.getElementById('errorMessage').textContent = message;
             alert.style.display = 'block';
+            alert.className = 'alert alert-danger alert-error';
+            
+            // Auto-hide after 5 seconds
             setTimeout(() => {
                 hideError();
             }, 5000);
         }
 
-        // Hide error
         function hideError() {
             document.getElementById('errorAlert').style.display = 'none';
-        }
-
-        // Optional: Add keyboard support and visual feedback
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add hover effects
-            document.querySelectorAll('.game-btn').forEach(btn => {
-                btn.addEventListener('mouseenter', function() {
-                    if (!this.classList.contains('active')) {
-                        this.style.transform = 'scale(1.05)';
-                        this.style.transition = 'transform 0.2s';
-                    }
-                });
-                btn.addEventListener('mouseleave', function() {
-                    this.style.transform = 'scale(1)';
-                });
-            });
-            
-            // Allow Enter key to submit form
-            document.getElementById('username').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    document.getElementById('apiForm').dispatchEvent(new Event('submit'));
-                }
-            });
-            
-            // Optional: Preselect a platform if needed (e.g., from session or URL)
-            // Uncomment and modify as needed:
-            // const defaultPlatform = '{{ session.get("default_platform", "") }}';
-            // if (defaultPlatform) {
-            //     preselectPlatform(defaultPlatform);
-            // }
-        });
-
-        // Function to clear selection (optional)
-        function clearPlatformSelection() {
-            const allButtons = document.querySelectorAll('.game-btn');
-            allButtons.forEach(btn => {
-                btn.classList.remove('active', 'btn-primary');
-                btn.classList.add('btn-outline-primary');
-            });
-            document.getElementById('selectedPlatform').value = '';
-            selectedPlatformId = null;
-        }
-
-        // Function to pre-select a platform (useful for editing or default values)
-        function preselectPlatform(platformId) {
-            const buttons = document.querySelectorAll('.game-btn');
-            buttons.forEach(btn => {
-                if (btn.dataset.gameId === platformId) {
-                    selectPlatform(btn);
-                }
-            });
-        }
-
-        // Optional: Handle API Query directly (if you still need this function)
-        async function handleApiQuery() {
-            showPreloader();
-            
-            try {
-                const response = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        platform_id: document.getElementById('selectedPlatform').value,
-                        username: document.getElementById('username').value.trim()
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    window.location.href = '{{ url_for("results") }}';
-                } else {
-                    showError(data.message || 'API request failed');
-                    hidePreloader();
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showError('Network error. Please check your connection.');
-                hidePreloader();
-            }
         }
     </script>
     

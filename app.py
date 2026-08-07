@@ -41,18 +41,10 @@ limiter = Limiter(
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
-    # e.description could be a string or dict
-    description = str(e.description)
-    
-    # Try to extract retry_after if it exists
-    retry_after = 60
-    if hasattr(e, 'retry_after'):
-        retry_after = e.retry_after
-    
     return jsonify({
         'error': 'Rate limit exceeded',
-        'message': description,
-        'retry_after': retry_after
+        'message': '2 per 1 hour',
+        'retry_after': None
     }), 429
 
 # Initialize and connect your server-side session database
@@ -329,28 +321,29 @@ def refresh_data():
             session['last_updated'] = datetime.now(timezone.utc).isoformat()
             
             return jsonify({
-                'success': True,
-                'data': data,
-                'message': 'Data refreshed successfully',
-                'from_cache': False
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': f'API Error: {response.status_code}'
-            })
-            
+            'success': True,
+            'message': 'Data fetched successfully',
+            'data': session['api_data']
+        })
+        
     except Exception as e:
-        app.logger.error(f"Error in refresh_data: {str(e)}", exc_info=True)
-        return jsonify({'success': False, 'message': str(e)})
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
+# Session management
 @app.route('/api/clear_session', methods=['POST'])
-def clear_session_data():
-    """Clear session data"""
-    session.pop('api_data', None)
-    session.pop('platform', None)
-    session.pop('username', None)
-    session.pop('from_cache', None)
-    session.pop('last_updated', None)
-    
-    return jsonify({'success': True, 'message': 'Session data cleared'})
+def clear_session():
+    session.clear()
+    return jsonify({'success': True, 'message': 'Session cleared'})
+
+@app.route('/api/session_status')
+def session_status():
+    """Check if session has data"""
+    return jsonify({
+        'has_data': bool(session.get('api_data')),
+        'platform': session.get('platform'),
+        'username': session.get('username'),
+        'last_query': session.get('last_query_time')
+    })
