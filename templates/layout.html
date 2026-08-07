@@ -252,6 +252,40 @@
     <!-- Custom JavaScript -->
     <script>
         // Submit the form
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded - setting up platform buttons');
+            
+            // Get all platform buttons
+            const buttons = document.querySelectorAll('.platform-btn');
+            console.log('Found buttons:', buttons.length);
+            
+            // Add click event to each button
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active from all buttons
+                    buttons.forEach(btn => {
+                        btn.classList.remove('active', 'btn-primary');
+                        btn.classList.add('btn-outline-primary');
+                    });
+                    
+                    // Activate clicked button
+                    this.classList.remove('btn-outline-primary');
+                    this.classList.add('active', 'btn-primary');
+                    
+                    // Store selected platform
+                    const platformId = this.dataset.platform;
+                    document.getElementById('selectedPlatform').value = platformId;
+                    
+                    // Update status
+                    document.getElementById('platformStatus').textContent = 
+                        `✅ Selected: ${this.textContent.trim()}`;
+                    document.getElementById('platformStatus').style.color = 'green';
+                    
+                    console.log('Selected platform:', platformId);
+                });
+            });
+        });
+
         async function submitApiForm(formId) {
             const form = document.getElementById(formId);
             if (!form) return;
