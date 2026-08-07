@@ -250,48 +250,108 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- Custom JavaScript -->
-    <script>
-        // Submit the form
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded - setting up platform buttons');
+   <script>
+        // ============================================
+        // ALL FUNCTIONS DEFINED AT THE TOP LEVEL
+        // ============================================
+
+        // 1. Helper Functions (defined first)
+        function showPreloader() {
+            console.log('Showing preloader');
+            const preloader = document.getElementById('preloader');
+            if (preloader) {
+                preloader.style.display = 'flex';
+            } else {
+                console.warn('Preloader element not found');
+            }
+        }
+
+        function hidePreloader() {
+            console.log('Hiding preloader');
+            const preloader = document.getElementById('preloader');
+            if (preloader) {
+                preloader.style.display = 'none';
+            }
+        }
+
+        function showError(message) {
+            console.log('Showing error:', message);
+            const alert = document.getElementById('errorAlert');
+            if (alert) {
+                document.getElementById('errorMessage').textContent = message;
+                alert.style.display = 'block';
+                setTimeout(() => {
+                    hideError();
+                }, 5000);
+            } else {
+                alert('Error: ' + message);
+            }
+        }
+
+        function hideError() {
+            console.log('Hiding error');
+            const alert = document.getElementById('errorAlert');
+            if (alert) {
+                alert.style.display = 'none';
+            }
+        }
+
+        // 2. Platform Selection Function
+        function selectPlatform(button) {
+            console.log('Button clicked:', button);
             
             // Get all platform buttons
-            const buttons = document.querySelectorAll('.platform-btn');
-            console.log('Found buttons:', buttons.length);
+            const allButtons = document.querySelectorAll('.platform-btn');
             
-            // Add click event to each button
-            buttons.forEach(button => {
-                button.addEventListener('click', function() {
-                    // Remove active from all buttons
-                    buttons.forEach(btn => {
-                        btn.classList.remove('active', 'btn-primary');
-                        btn.classList.add('btn-outline-primary');
-                    });
-                    
-                    // Activate clicked button
-                    this.classList.remove('btn-outline-primary');
-                    this.classList.add('active', 'btn-primary');
-                    
-                    // Store selected platform
-                    const platformId = this.dataset.platform;
-                    document.getElementById('selectedPlatform').value = platformId;
-                    
-                    console.log('Selected platform:', platformId);
-                });
+            // Remove 'active' class from all buttons
+            allButtons.forEach(btn => {
+                btn.classList.remove('active', 'btn-primary');
+                btn.classList.add('btn-outline-primary');
             });
-        });
-
-        async function submitApiForm(formId) {
-            const form = document.getElementById(formId);
-            if (!form) return;
             
-            const platformId = document.getElementById('selectedPlatform').value;
-            if (!platformId) {
-                showError('Please select a platform.');
+            // Activate the clicked button
+            button.classList.remove('btn-outline-primary');
+            button.classList.add('active', 'btn-primary');
+            
+            // Store the selected platform ID
+            const platformId = button.dataset.platform;
+            document.getElementById('selectedPlatform').value = platformId;
+            
+            // Update status message
+            const statusEl = document.getElementById('platformStatus');
+            statusEl.textContent = `✅ Selected: ${button.textContent.trim()}`;
+            statusEl.style.color = 'green';
+            
+            console.log('Selected platform:', platformId);
+        }
+
+        // 3. Main Submit Function
+        async function submitApiForm(formId) {
+            console.log('Submitting form...');
+            
+            const form = document.getElementById(formId);
+            if (!form) {
+                console.error('Form not found!');
+                showError('Form not found');
                 return;
             }
             
+            // Get selected platform
+            const platformId = document.getElementById('selectedPlatform').value;
+            console.log('Platform ID from hidden input:', platformId);
+            
+            if (!platformId) {
+                showError('Please select a platform first!');
+                const statusEl = document.getElementById('platformStatus');
+                statusEl.textContent = '⚠️ Please select a platform!';
+                statusEl.style.color = 'red';
+                return;
+            }
+            
+            // Get username
             const username = document.getElementById('username').value.trim();
+            console.log('Username:', username);
+            
             if (!username) {
                 showError('Please enter a username.');
                 return;
@@ -301,6 +361,7 @@
             
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
+            console.log('Form data:', data);
             
             try {
                 const response = await fetch('/api/query', {
@@ -312,18 +373,16 @@
                 });
                 
                 const result = await response.json();
+                console.log('Response:', result);
                 
-                // Check if rate limited
                 if (response.status === 429) {
-                    // Show rate limit error but keep page content
                     showError(result.message || 'Rate limit exceeded. Please try again later.');
                     hidePreloader();
                     return;
                 }
                 
                 if (result.success) {
-                    // Store data in session and redirect
-                    window.location.href = '{{ url_for("results") }}';
+                    window.location.href = '/results';
                 } else {
                     showError(result.message || 'Failed to fetch data');
                     hidePreloader();
@@ -335,23 +394,54 @@
             }
         }
 
-        // Function to show error without clearing page content
-        function showError(message) {
-            const alert = document.getElementById('errorAlert');
-            document.getElementById('errorMessage').textContent = message;
-            alert.style.display = 'block';
-            alert.className = 'alert alert-danger alert-error';
+        // 4. DOM Ready - Initialize Everything
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded - initializing platform buttons');
             
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                hideError();
-            }, 5000);
-        }
+            // Get all platform buttons
+            const buttons = document.querySelectorAll('.platform-btn');
+            console.log('Found platform buttons:', buttons.length);
+            
+            if (buttons.length === 0) {
+                console.error('No platform buttons found!');
+                return;
+            }
+            
+            // Add click event listeners (removing inline onclick)
+            buttons.forEach(button => {
+                // Remove any existing onclick attributes
+                button.removeAttribute('onclick');
+                
+                button.addEventListener('click', function() {
+                    selectPlatform(this);
+                });
+            });
+            
+            // Handle Enter key on username field
+            const usernameField = document.getElementById('username');
+            if (usernameField) {
+                usernameField.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitApiForm('apiForm');
+                    }
+                });
+            }
+            
+            console.log('✅ Platform buttons initialized successfully');
+        });
 
-        function hideError() {
-            document.getElementById('errorAlert').style.display = 'none';
-        }
-    </script>
+        // 5. Make functions globally accessible (just in case)
+        window.selectPlatform = selectPlatform;
+        window.submitApiForm = submitApiForm;
+        window.showPreloader = showPreloader;
+        window.hidePreloader = hidePreloader;
+        window.showError = showError;
+        window.hideError = hideError;
+
+        console.log('✅ All functions loaded and ready');
+        </script>
+        {% endblock %}
     
     {% block extra_js %}{% endblock %}
 </body>
