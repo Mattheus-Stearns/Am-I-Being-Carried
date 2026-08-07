@@ -356,9 +356,23 @@
             
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
-            console.log('Form data:', data);
+            
+            data.force_refresh = true;
+            console.log('📦 Form data with force_refresh:', data);
             
             try {
+                 // First, clear the session to force a fresh request
+                console.log('🧹 Clearing session...');
+                await fetch('/api/clear_session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                console.log('✅ Session cleared');
+                
+                // Then make the API query
+                console.log('🚀 Making API query...');
                 const response = await fetch('/api/query', {
                     method: 'POST',
                     headers: {

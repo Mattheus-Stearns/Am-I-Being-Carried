@@ -175,7 +175,11 @@ def query_api():
         req_data = request.get_json()
         platform = req_data.get('platform_id', '').strip().lower()
         username = req_data.get('username', '').strip()
-        force_refresh = req_data.get('force_refresh', False)  # Optional: force refresh
+        force_refresh = req_data.get('force_refresh', True)
+        
+        # DEBUG: Log current session state
+        print(f"🔍 Session before query: {dict(session)}")
+        print(f"📝 Request: platform={platform}, username={username}, force_refresh={force_refresh}")
         
         if not platform or not username:
             return jsonify({'success': False, 'message': 'Missing platform or username'})
