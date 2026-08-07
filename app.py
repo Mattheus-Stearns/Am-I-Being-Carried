@@ -39,13 +39,20 @@ limiter = Limiter(
     default_limits=["10 per day", "2 per hour"],
 )
 
-# Custom error handler for rate limit
 @app.errorhandler(429)
 def ratelimit_handler(e):
+    # e.description could be a string or dict
+    description = str(e.description)
+    
+    # Try to extract retry_after if it exists
+    retry_after = 60
+    if hasattr(e, 'retry_after'):
+        retry_after = e.retry_after
+    
     return jsonify({
         'error': 'Rate limit exceeded',
-        'message': str(e.description),
-        'retry_after': e.description.get('retry_after', 60)
+        'message': description,
+        'retry_after': retry_after
     }), 429
 
 # Initialize and connect your server-side session database
