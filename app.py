@@ -9,7 +9,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 import json
 import requests
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, time
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import redis
 
 load_dotenv()
 
@@ -19,6 +22,31 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 app.secret_key = os.getenv("SECRET_KEY")
+
+# Configure Redis
+redis_client = redis.Redis(
+    host='localhost',
+    port=6379,
+    db=0,
+    decode_responses=True
+)
+
+# Initialize rate limiter with Redis
+limiter = Limiter(
+    key_func=get_remote_address,  # Gets IP automatically
+    app=app,
+    storage_uri="redis://localhost:6379/0",
+    default_limits=["10 per day", "2 per hour"],
+)
+
+# Custom error handler for rate limit
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        'error': 'Rate limit exceeded',
+        'message': str(e.description),
+        'retry_after': e.description.get('retry_after', 60)
+    }), 429
 
 # Initialize and connect your server-side session database
 db = SQLAlchemy()
@@ -72,6 +100,7 @@ with app.app_context():
         print(f"Error creating tables: {e}")
 
 # Routes
+
 @app.route('/')
 def index():
     """Home page with search form"""
@@ -100,8 +129,8 @@ def results():
                          from_cache=from_cache,
                          last_updated=last_updated)
 
-
 @app.route('/api/query', methods=['POST'])
+@limiter.limit("2 per hour")
 def query_api():
     """Handle API query with session caching"""
     try:
