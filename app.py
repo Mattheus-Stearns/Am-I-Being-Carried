@@ -32,10 +32,6 @@ app.config["SESSION_SQLALCHEMY_TABLE"] = "sessions"  # Automatically creates thi
 db.init_app(app)
 Session(app)
 
-# Build the session table automatically on startup
-with app.app_context():
-    db.create_all()
-
 # Database Models
 class PlayerProfile(db.Model):
     __tablename__ = 'player_profiles'
@@ -64,8 +60,16 @@ class APICallLog(db.Model):
     success = db.Column(db.Boolean, default=True)
     response_code = db.Column(db.Integer)
     error_message = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.now(datetime.timezone.utc))
     response_size = db.Column(db.Integer)  # Size of response in bytes
+
+# Create tables when the app starts
+with app.app_context():
+    try:
+        db.create_all()
+        print("Database tables created/verified successfully!")
+    except Exception as e:
+        print(f"Error creating tables: {e}")
 
 # Routes
 @app.route('/')
