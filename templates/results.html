@@ -35,9 +35,12 @@
             <div class="card mt-4 {% if carried_score >= 80 %}border-danger{% elif carried_score >= 60 %}border-warning{% elif carried_score >= 40 %}border-info{% else %}border-success{% endif %}" id="carried-score-card">
                 <div class="card-header {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %} text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas {{ carried_icon }}"></i> Carried Detection Algorithm</h5>
-                    <div>
-                        <button class="btn btn-sm btn-light share-btn" data-share="true">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-light share-btn">
                             <i class="fas fa-share-alt"></i> Share
+                        </button>
+                        <button class="btn btn-sm btn-outline-light copy-btn">
+                            <i class="fas fa-copy"></i> Copy Link
                         </button>
                     </div>
                 </div>

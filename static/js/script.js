@@ -212,7 +212,7 @@ async function shareResult() {
         const card = document.getElementById('carried-score-card');
         if (!card) {
             console.error('Card not found');
-            showToast('Card not found to share.', 'danger');
+            showToast('❌ Card not found to share.', 'danger');
             shareBtn.innerHTML = originalText;
             shareBtn.disabled = false;
             return;
@@ -221,7 +221,7 @@ async function shareResult() {
         // Check if html2canvas is loaded
         if (typeof html2canvas === 'undefined') {
             console.error('html2canvas not loaded');
-            showToast('Share library not loaded. Please refresh and try again.', 'danger');
+            showToast('❌ Share library not loaded. Please refresh and try again.', 'danger');
             shareBtn.innerHTML = originalText;
             shareBtn.disabled = false;
             return;
@@ -232,13 +232,12 @@ async function shareResult() {
         
         // Generate image with watermark
         const canvas = await html2canvas(card, {
-            scale: 2, // Higher quality
+            scale: 2,
             backgroundColor: '#ffffff',
             allowTaint: true,
             useCORS: true,
             logging: false,
             onclone: function(document) {
-                // Ensure all images load properly
                 document.querySelectorAll('img').forEach(img => {
                     img.crossOrigin = 'anonymous';
                 });
@@ -247,8 +246,6 @@ async function shareResult() {
         
         // Add watermark/text to the image
         const ctx = canvas.getContext('2d');
-        
-        // Draw semi-transparent footer with site URL
         const footerHeight = 40;
         const gradient = ctx.createLinearGradient(0, canvas.height - footerHeight, 0, canvas.height);
         gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
@@ -257,19 +254,11 @@ async function shareResult() {
         ctx.fillStyle = gradient;
         ctx.fillRect(0, canvas.height - footerHeight, canvas.width, footerHeight);
         
-        // Add text (site URL)
         ctx.fillStyle = '#ffffff';
         ctx.font = '16px Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`Check your score at ${siteUrl}`, canvas.width / 2, canvas.height - (footerHeight / 2));
-        
-        // Add small watermark in corner (optional)
-        ctx.font = '12px Arial, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'bottom';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.fillText('Am I Being Carried?', canvas.width - 10, canvas.height - 5);
         
         // Convert to image URL
         const imageUrl = canvas.toDataURL('image/png');
@@ -281,38 +270,72 @@ async function shareResult() {
         // Create share text with link
         const shareText = `I got a ${scoreText} Carried Score! Check yours at ${siteUrl}`;
         
-        // Check if Web Share API is available (mobile/desktop sharing)
+        // --- MODIFIED: Better handling for macOS ---
+        let shareSuccessful = false;
+        
+        // Check if Web Share API is available
         if (navigator.share) {
             try {
-                // Convert image URL to blob for sharing
+                // Convert image to blob
                 const response = await fetch(imageUrl);
                 const blob = await response.blob();
                 const file = new File([blob], 'carried-score.png', { type: 'image/png' });
                 
+                // Share with file
                 await navigator.share({
                     title: 'Am I Being Carried?',
                     text: shareText,
                     files: [file],
                     url: siteUrl
                 });
+                
+                shareSuccessful = true;
+                showToast('✅ Shared successfully!', 'success');
+                
             } catch (shareError) {
-                console.log('Share error (user cancelled or fallback):', shareError);
-                // If file sharing fails or user cancels, try text-only share
-                try {
-                    await navigator.share({
-                        title: 'Am I Being Carried?',
-                        text: shareText,
-                        url: siteUrl
-                    });
-                } catch (textShareError) {
-                    console.log('Text share cancelled or failed');
-                    // Fallback to download
-                    downloadImageAndCopyLink(imageUrl, shareText);
+                console.log('Share cancelled or failed:', shareError);
+                
+                // If user cancelled or share failed, try text-only share
+                if (shareError.name !== 'AbortError' && shareError.name !== 'CancelError') {
+                    try {
+                        // Try text-only share as fallback
+                        await navigator.share({
+                            title: 'Am I Being Carried?',
+                            text: shareText,
+                            url: siteUrl
+                        });
+                        shareSuccessful = true;
+                        showToast('✅ Shared successfully!', 'success');
+                    } catch (textError) {
+                        console.log('Text share failed:', textError);
+                        // Fall through to desktop fallback
+                    }
+                } else {
+                    // User cancelled - show a friendly message
+                    showToast('📋 Share cancelled. Link copied to clipboard instead.', 'info');
+                    // Still copy to clipboard
+                    await navigator.clipboard.writeText(shareText);
+                    shareSuccessful = true;
                 }
             }
-        } else {
-            // Desktop fallback: Download image + copy link
-            downloadImageAndCopyLink(imageUrl, shareText);
+        }
+        
+        // If share wasn't successful (or not available), use desktop fallback
+        if (!shareSuccessful) {
+            // For desktop: just download the image and copy link
+            const link = document.createElement('a');
+            link.download = 'carried-score.png';
+            link.href = imageUrl;
+            link.click();
+            
+            // Copy text to clipboard
+            try {
+                await navigator.clipboard.writeText(shareText);
+                showToast('✅ Image downloaded! Link copied to clipboard.', 'success');
+            } catch (clipError) {
+                // If clipboard fails, show manual copy
+                showToast('✅ Image downloaded! Copy this link: ' + shareText, 'info');
+            }
         }
         
         // Reset button
@@ -323,7 +346,6 @@ async function shareResult() {
         console.error('Share error:', error);
         showToast('❌ Failed to share. Please try again.', 'danger');
         
-        // Reset button
         const shareBtn = document.querySelector('.share-btn');
         if (shareBtn) {
             shareBtn.innerHTML = '<i class="fas fa-share-alt"></i> Share';
@@ -332,21 +354,47 @@ async function shareResult() {
     }
 }
 
-// Helper function for desktop fallback
-function downloadImageAndCopyLink(imageUrl, shareText) {
-    // Download the image
-    const link = document.createElement('a');
-    link.download = 'carried-score.png';
-    link.href = imageUrl;
-    link.click();
-    
-    // Copy text with link to clipboard
-    navigator.clipboard.writeText(shareText).then(() => {
-        showToast('Image downloaded! Link copied to clipboard.', 'success');
-    }).catch(() => {
-        // Fallback: show manual copy instructions
-        showToast('Image downloaded! Share text: ' + shareText, 'info');
-    });
+async function copyShareLink() {
+    try {
+        const copyBtn = document.querySelector('.copy-btn');
+        if (copyBtn) {
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Copying...';
+            copyBtn.disabled = true;
+        }
+        
+        const siteUrl = window.location.origin;
+        const scoreElement = document.querySelector('[style*="font-size: 4rem;"]');
+        const scoreText = scoreElement?.textContent?.trim() || '??';
+        
+        // Get player info if available
+        const platform = document.body?.dataset?.platform || '';
+        const username = document.body?.dataset?.username || '';
+        const playerInfo = platform && username ? ` (${platform}/${username})` : '';
+        
+        const shareText = `I got a ${scoreText} Carried Score${playerInfo}! Check yours at ${siteUrl}`;
+        
+        // Copy to clipboard
+        await navigator.clipboard.writeText(shareText);
+        showToast('✅ Share link copied to clipboard! Share it with your friends.', 'success');
+        
+        if (copyBtn) {
+            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            setTimeout(() => {
+                copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy Link';
+                copyBtn.disabled = false;
+            }, 2000);
+        }
+    } catch (error) {
+        console.error('Copy error:', error);
+        showToast('❌ Failed to copy. Please try again.', 'danger');
+        
+        const copyBtn = document.querySelector('.copy-btn');
+        if (copyBtn) {
+            copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy Link';
+            copyBtn.disabled = false;
+        }
+    }
 }
 
 // 7. Refresh Data Function
@@ -434,6 +482,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (shareButton) {
         shareButton.addEventListener('click', shareResult);
         console.log('✅ Share button initialized');
+    }
+
+    const copyBtn = document.querySelector('.copy-btn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', copyShareLink);
+        console.log('✅ Copy button initialized');
     }
     
     // --- Handle Enter key on username field ---
