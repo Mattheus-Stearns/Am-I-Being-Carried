@@ -12,6 +12,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import redis
 import re
+import json
 
 load_dotenv()
 
@@ -542,6 +543,10 @@ def format_date(date_string):
 @limiter.limit("1 per 5 minutes")
 def query_api():
     """Handle API query with session caching"""
+    start_time = datetime.utcnow()
+    platform = None
+    username = None
+    
     try:
         req_data = request.get_json()
         platform = req_data.get('platform_id', '').strip().lower()
@@ -549,10 +554,26 @@ def query_api():
         force_refresh = req_data.get('force_refresh', True)
         
         # DEBUG: Log current session state
-        print(f" Session before query: {dict(session)}")
-        print(f" Request: platform={platform}, username={username}, force_refresh={force_refresh}")
+        print(f"Session before query: {dict(session)}")
+        print(f"Request: platform={platform}, username={username}, force_refresh={force_refresh}")
         
         if not platform or not username:
+            # LOG VALIDATION ERROR
+            try:
+                log = APICallLog(
+                    platform=platform or 'unknown',
+                    username=username or 'unknown',
+                    success=False,
+                    response_code=400,
+                    error_message='Missing platform or username',
+                    timestamp=datetime.utcnow(),
+                    response_size=0
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log validation error: {log_error}")
+            
             return jsonify({'success': False, 'message': 'Missing platform or username'})
         
         # Check if we have data in session first (faster than DB query)
@@ -563,6 +584,23 @@ def query_api():
         # If session has data and it matches the current search and not forcing refresh
         if session_data and session_platform == platform and session_username == username and not force_refresh:
             app.logger.info(f"Serving data from session for {platform}:{username}")
+            
+            # LOG SESSION HIT
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=True,
+                    response_code=200,
+                    error_message=None,
+                    timestamp=datetime.utcnow(),
+                    response_size=len(json.dumps(session_data)) if session_data else 0
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log session hit: {log_error}")
+            
             return jsonify({
                 'success': True,
                 'data': session_data,
@@ -597,6 +635,23 @@ def query_api():
                 session['last_updated'] = existing_profile.updated_at.isoformat()
                 
                 app.logger.info(f"Serving data from database for {platform}:{username}")
+                
+                # LOG DATABASE HIT
+                try:
+                    log = APICallLog(
+                        platform=platform,
+                        username=username,
+                        success=True,
+                        response_code=200,
+                        error_message=None,
+                        timestamp=datetime.utcnow(),
+                        response_size=len(json.dumps(existing_profile.data)) if existing_profile.data else 0
+                    )
+                    db.session.add(log)
+                    db.session.commit()
+                except Exception as log_error:
+                    print(f"Failed to log database hit: {log_error}")
+                
                 return jsonify({
                     'success': True,
                     'data': existing_profile.data,
@@ -610,71 +665,191 @@ def query_api():
         
         api_key = os.getenv("API_KEY")
         if not api_key:
-            return jsonify({'success': False, 'message': 'Server configuration error'})
-        
-        response = requests.get(
-            "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions",
-            headers={
-                "X-API-Key": api_key,
-                "API-Snapshot-Version": "6"
-            },
-            params={
-                "platform": platform,
-                "username": username
-            },
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            
-            # Save to database
-            if existing_profile:
-                existing_profile.data = data
-                existing_profile.updated_at = datetime.now(timezone.utc)
-                existing_profile.last_accessed = datetime.now(timezone.utc)
-                existing_profile.api_call_count += 1
-                existing_profile.session_id = session.sid if hasattr(session, 'sid') else None
-            else:
-                new_profile = PlayerProfile(
+            # LOG API KEY ERROR
+            try:
+                log = APICallLog(
                     platform=platform,
                     username=username,
-                    data=data,
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc),
-                    last_accessed=datetime.now(timezone.utc),
-                    session_id=session.sid if hasattr(session, 'sid') else None
+                    success=False,
+                    response_code=500,
+                    error_message='Server configuration error - API_KEY missing',
+                    timestamp=datetime.utcnow(),
+                    response_size=0
                 )
-                db.session.add(new_profile)
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log API key error: {log_error}")
             
-            db.session.commit()
+            return jsonify({'success': False, 'message': 'Server configuration error'})
+        
+        try:
+            response = requests.get(
+                "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions",
+                headers={
+                    "X-API-Key": api_key,
+                    "API-Snapshot-Version": "6"
+                },
+                params={
+                    "platform": platform,
+                    "username": username
+                },
+                timeout=30
+            )
             
-            # Store in session
-            session['api_data'] = data
-            session['platform'] = platform
-            session['username'] = username
-            session['from_cache'] = False
-            session['last_updated'] = datetime.now(timezone.utc).isoformat()
+            response_size = len(response.content) if response.content else 0
             
-            return jsonify({
-                'success': True,
-                'data': data,
-                'message': f'Successfully fetched fresh data for {username} on {platform}',
-                'from_cache': False
-            })
-        else:
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Save to database
+                if existing_profile:
+                    existing_profile.data = data
+                    existing_profile.updated_at = datetime.now(timezone.utc)
+                    existing_profile.last_accessed = datetime.now(timezone.utc)
+                    existing_profile.api_call_count += 1
+                    existing_profile.session_id = session.sid if hasattr(session, 'sid') else None
+                else:
+                    new_profile = PlayerProfile(
+                        platform=platform,
+                        username=username,
+                        data=data,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                        last_accessed=datetime.now(timezone.utc),
+                        session_id=session.sid if hasattr(session, 'sid') else None
+                    )
+                    db.session.add(new_profile)
+                
+                db.session.commit()
+                
+                # Store in session
+                session['api_data'] = data
+                session['platform'] = platform
+                session['username'] = username
+                session['from_cache'] = False
+                session['last_updated'] = datetime.now(timezone.utc).isoformat()
+                
+                # LOG SUCCESSFUL API CALL
+                try:
+                    log = APICallLog(
+                        platform=platform,
+                        username=username,
+                        success=True,
+                        response_code=response.status_code,
+                        error_message=None,
+                        timestamp=datetime.utcnow(),
+                        response_size=response_size
+                    )
+                    db.session.add(log)
+                    db.session.commit()
+                    print(f"Logged successful API call for {platform}/{username}")
+                except Exception as log_error:
+                    print(f"Failed to log API call: {log_error}")
+                    db.session.rollback()
+                
+                return jsonify({
+                    'success': True,
+                    'data': data,
+                    'message': f'Successfully fetched fresh data for {username} on {platform}',
+                    'from_cache': False
+                })
+            else:
+                # LOG FAILED API CALL
+                try:
+                    log = APICallLog(
+                        platform=platform,
+                        username=username,
+                        success=False,
+                        response_code=response.status_code,
+                        error_message=f'API returned status {response.status_code}',
+                        timestamp=datetime.utcnow(),
+                        response_size=response_size
+                    )
+                    db.session.add(log)
+                    db.session.commit()
+                    print(f"Logged failed API call for {platform}/{username}")
+                except Exception as log_error:
+                    print(f"Failed to log API call: {log_error}")
+                    db.session.rollback()
+                
+                return jsonify({
+                    'success': False,
+                    'message': f'API Error: {response.status_code}'
+                })
+                
+        except requests.exceptions.Timeout:
+            # LOG TIMEOUT ERROR
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=408,
+                    error_message='API request timed out',
+                    timestamp=datetime.utcnow(),
+                    response_size=0
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log timeout error: {log_error}")
+            
             return jsonify({
                 'success': False,
-                'message': f'API Error: {response.status_code}'
-            })
+                'message': 'API request timed out. Please try again.'
+            }), 408
+            
+        except requests.exceptions.RequestException as req_error:
+            # LOG REQUEST ERROR
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=500,
+                    error_message=f'Request error: {str(req_error)}',
+                    timestamp=datetime.utcnow(),
+                    response_size=0
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log request error: {log_error}")
+            
+            return jsonify({
+                'success': False,
+                'message': f'Request error: {str(req_error)}'
+            }), 500
             
     except Exception as e:
+        # LOG UNEXPECTED ERROR
+        try:
+            log = APICallLog(
+                platform=platform or 'unknown',
+                username=username or 'unknown',
+                success=False,
+                response_code=500,
+                error_message=f'Unexpected error: {str(e)}',
+                timestamp=datetime.utcnow(),
+                response_size=0
+            )
+            db.session.add(log)
+            db.session.commit()
+            print(f"Logged unexpected error: {str(e)}")
+        except Exception as log_error:
+            print(f"Failed to log error: {log_error}")
+            db.session.rollback()
+        
         app.logger.error(f"Error in query_api: {str(e)}", exc_info=True)
-        return jsonify({'success': False, 'message': str(e)})
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/refresh', methods=['POST'])
 def refresh_data():
     """Force refresh data for current session"""
+    platform = None
+    username = None
+    
     try:
         req_data = request.get_json()
         platform = req_data.get('platform_id', '').strip().lower()
@@ -688,59 +863,177 @@ def refresh_data():
         
         api_key = os.getenv("API_KEY")
         if not api_key:
-            return jsonify({'success': False, 'message': 'Server configuration error'})
-        
-        response = requests.get(
-            "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions",
-            headers={
-                "X-API-Key": api_key,
-                "API-Snapshot-Version": "6"
-            },
-            params={
-                "platform": platform,
-                "username": username
-            },
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            
-            # Update database
-            existing_profile = PlayerProfile.query.filter_by(
-                platform=platform,
-                username=username
-            ).first()
-            
-            if existing_profile:
-                existing_profile.data = data
-                existing_profile.updated_at = datetime.now(timezone.utc)
-                existing_profile.api_call_count += 1
-            else:
-                new_profile = PlayerProfile(
+            # LOG API KEY ERROR
+            try:
+                log = APICallLog(
                     platform=platform,
                     username=username,
-                    data=data,
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc),
-                    session_id=session.sid if hasattr(session, 'sid') else None
+                    success=False,
+                    response_code=500,
+                    error_message='Server configuration error - API_KEY missing',
+                    timestamp=datetime.utcnow(),
+                    response_size=0
                 )
-                db.session.add(new_profile)
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log API key error: {log_error}")
             
-            db.session.commit()
+            return jsonify({'success': False, 'message': 'Server configuration error'})
+        
+        try:
+            response = requests.get(
+                "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions",
+                headers={
+                    "X-API-Key": api_key,
+                    "API-Snapshot-Version": "6"
+                },
+                params={
+                    "platform": platform,
+                    "username": username
+                },
+                timeout=30
+            )
             
-            # Update session
-            session['api_data'] = data
-            session['from_cache'] = False
-            session['last_updated'] = datetime.now(timezone.utc).isoformat()
+            response_size = len(response.content) if response.content else 0
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Update database
+                existing_profile = PlayerProfile.query.filter_by(
+                    platform=platform,
+                    username=username
+                ).first()
+                
+                if existing_profile:
+                    existing_profile.data = data
+                    existing_profile.updated_at = datetime.now(timezone.utc)
+                    existing_profile.api_call_count += 1
+                else:
+                    new_profile = PlayerProfile(
+                        platform=platform,
+                        username=username,
+                        data=data,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                        session_id=session.sid if hasattr(session, 'sid') else None
+                    )
+                    db.session.add(new_profile)
+                
+                db.session.commit()
+                
+                # Update session
+                session['api_data'] = data
+                session['from_cache'] = False
+                session['last_updated'] = datetime.now(timezone.utc).isoformat()
+                
+                # LOG REFRESH SUCCESS
+                try:
+                    log = APICallLog(
+                        platform=platform,
+                        username=username,
+                        success=True,
+                        response_code=response.status_code,
+                        error_message=None,
+                        timestamp=datetime.utcnow(),
+                        response_size=response_size
+                    )
+                    db.session.add(log)
+                    db.session.commit()
+                    print(f"Logged refresh for {platform}/{username}")
+                except Exception as log_error:
+                    print(f"Failed to log refresh: {log_error}")
+                    db.session.rollback()
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'Data fetched successfully',
+                    'data': session['api_data']
+                })
+            else:
+                # LOG REFRESH FAILED
+                try:
+                    log = APICallLog(
+                        platform=platform,
+                        username=username,
+                        success=False,
+                        response_code=response.status_code,
+                        error_message=f'Refresh API returned {response.status_code}',
+                        timestamp=datetime.utcnow(),
+                        response_size=response_size
+                    )
+                    db.session.add(log)
+                    db.session.commit()
+                except Exception as log_error:
+                    print(f"Failed to log refresh failure: {log_error}")
+                
+                return jsonify({
+                    'success': False,
+                    'message': f'API Error: {response.status_code}'
+                }), response.status_code
+                
+        except requests.exceptions.Timeout:
+            # LOG TIMEOUT
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=408,
+                    error_message='Refresh request timed out',
+                    timestamp=datetime.utcnow(),
+                    response_size=0
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log timeout: {log_error}")
             
             return jsonify({
-            'success': True,
-            'message': 'Data fetched successfully',
-            'data': session['api_data']
-        })
-        
+                'success': False,
+                'message': 'Refresh request timed out. Please try again.'
+            }), 408
+            
+        except Exception as e:
+            # LOG REFRESH ERROR
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=500,
+                    error_message=f'Refresh error: {str(e)}',
+                    timestamp=datetime.utcnow(),
+                    response_size=0
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log refresh error: {log_error}")
+            
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+            
     except Exception as e:
+        # LOG UNEXPECTED ERROR
+        try:
+            log = APICallLog(
+                platform=platform or 'unknown',
+                username=username or 'unknown',
+                success=False,
+                response_code=500,
+                error_message=f'Unexpected refresh error: {str(e)}',
+                timestamp=datetime.utcnow(),
+                response_size=0
+            )
+            db.session.add(log)
+            db.session.commit()
+        except Exception as log_error:
+            print(f"Failed to log unexpected error: {log_error}")
+        
         return jsonify({
             'success': False,
             'message': str(e)
