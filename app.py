@@ -154,10 +154,10 @@ def results():
     platform = session.get('platform')
     username = session.get('username')
     from_cache = session.get('from_cache', False)
-    last_updated = session.get('last_updated')
+    last_updated = session.get('last_updated', None)
     
-    # Process matches
-    recent_matches = []
+    # Process matches - extract all competitive matches
+    all_matches = []
     competitive_playlists = [
         'Ranked Duel 1v1',
         'Ranked Doubles 2v2',
@@ -165,53 +165,103 @@ def results():
     ]
     
     if data and 'items' in data:
-        all_matches = []
+        # Iterate through all sessions (items)
         for session_item in data['items']:
             for match in session_item.get('matches', []):
                 playlist = match.get('metadata', {}).get('playlist', '')
-                if playlist in competitive_playlists:
-                    # Extract match data
+                is_grouped = match.get('metadata', {}).get('isGrouped', False)
+                
+                # Only include competitive matches that aren't grouped summaries
+                if playlist in competitive_playlists and not is_grouped:
+                    # Extract stats
+                    stats = match.get('stats', {})
+                    
                     match_data = {
                         'playlist': playlist,
                         'result': match.get('metadata', {}).get('result', 'unknown'),
                         'date_collected': match.get('metadata', {}).get('dateCollected', ''),
-                        'goals': match.get('stats', {}).get('goals', {}).get('value'),
-                        'assists': match.get('stats', {}).get('assists', {}).get('value'),
-                        'saves': match.get('stats', {}).get('saves', {}).get('value'),
-                        'shots': match.get('stats', {}).get('shots', {}).get('value'),
-                        'rating': match.get('stats', {}).get('rating', {}).get('value'),
+                        'goals': stats.get('goals', {}).get('value'),
+                        'assists': stats.get('assists', {}).get('value'),
+                        'saves': stats.get('saves', {}).get('value'),
+                        'shots': stats.get('shots', {}).get('value'),
+                        'mvps': stats.get('mvps', {}).get('value'),
+                        'matches_played': stats.get('matchesPlayed', {}).get('value'),
+                        'wins': stats.get('wins', {}).get('value'),
                     }
                     
+                    # Get rating information
+                    rating_stats = stats.get('rating', {})
+                    match_data['rating'] = rating_stats.get('value')
+                    
                     # Get rating metadata
-                    rating_metadata = match.get('stats', {}).get('rating', {}).get('metadata', {})
+                    rating_metadata = rating_stats.get('metadata', {})
                     match_data['rating_delta'] = rating_metadata.get('ratingDelta')
                     match_data['tier'] = rating_metadata.get('tier')
                     match_data['division'] = rating_metadata.get('division')
                     
                     all_matches.append(match_data)
         
-        # Sort by date and get last 10
-        all_matches.sort(key=lambda x: x['date_collected'], reverse=True)
+        # Sort by date (most recent first)
+        all_matches.sort(
+            key=lambda x: x['date_collected'] if x['date_collected'] else '',
+            reverse=True
+        )
+        
+        # Get last 10 matches (or all if less than 10)
         recent_matches = all_matches[:10]
         
         # Calculate summary statistics
         total_matches = len(recent_matches)
-        wins = sum(1 for m in recent_matches if m['result'] and ('victory' in m['result'].lower() or 'win' in m['result'].lower()))
-        losses = total_matches - wins
+        
+        # Determine wins based on result
+        def is_win(result):
+            if result:
+                result_lower = result.lower()
+                return 'victory' in result_lower or 'win' in result_lower
+            return False
+        
+        wins = sum(1 for m in recent_matches if is_win(m['result']))
+        losses = sum(1 for m in recent_matches if not is_win(m['result']) and m['result'])
+        
+        total_goals = sum(m['goals'] or 0 for m in recent_matches)
+        total_assists = sum(m['assists'] or 0 for m in recent_matches)
+        total_saves = sum(m['saves'] or 0 for m in recent_matches)
+        total_shots = sum(m['shots'] or 0 for m in recent_matches)
+        total_mvps = sum(m['mvps'] or 0 for m in recent_matches)
+        
         win_rate = round((wins / total_matches * 100) if total_matches > 0 else 0)
         
         match_summary = {
             'total_matches': total_matches,
             'wins': wins,
             'losses': losses,
-            'win_rate': win_rate
+            'win_rate': win_rate,
+            'total_goals': total_goals,
+            'total_assists': total_assists,
+            'total_saves': total_saves,
+            'total_shots': total_shots,
+            'total_mvps': total_mvps,
+            'avg_goals': round(total_goals / total_matches, 1) if total_matches > 0 else 0,
+            'avg_assists': round(total_assists / total_matches, 1) if total_matches > 0 else 0,
+            'avg_saves': round(total_saves / total_matches, 1) if total_matches > 0 else 0,
+            'avg_shots': round(total_shots / total_matches, 1) if total_matches > 0 else 0,
         }
     else:
+        recent_matches = []
         match_summary = {
             'total_matches': 0,
             'wins': 0,
             'losses': 0,
-            'win_rate': 0
+            'win_rate': 0,
+            'total_goals': 0,
+            'total_assists': 0,
+            'total_saves': 0,
+            'total_shots': 0,
+            'total_mvps': 0,
+            'avg_goals': 0,
+            'avg_assists': 0,
+            'avg_saves': 0,
+            'avg_shots': 0,
         }
     
     return render_template(
