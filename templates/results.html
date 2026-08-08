@@ -36,7 +36,7 @@
                 <div class="card-header {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %} text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas {{ carried_icon }}"></i> Carried Detection Algorithm</h5>
                     <div>
-                        <button id="shareButton" class="btn btn-sm btn-light">
+                        <button class="btn btn-sm btn-light share-btn" data-share="true">
                             <i class="fas fa-share-alt"></i> Share
                         </button>
                     </div>
@@ -342,10 +342,12 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const shareButton = document.getElementById('shareButton');
-    if (shareButton) {
-        shareButton.addEventListener('click', shareResult);
-    }
+    document.addEventListener('click', function(e) {
+        const shareButton = e.target.closest('.share-btn');
+        if (shareButton) {
+            shareResult();
+        }
+    });
 });
 
 
