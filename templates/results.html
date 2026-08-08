@@ -125,10 +125,14 @@
                                         {% endif %}
                                     </div>
                                     
-                                    <!-- Matches Played -->
                                     <div class="col-md-2 text-center">
-                                        <small class="text-muted">Matches</small>
-                                        <div class="h5 mb-0">{{ match.matches_played or '1' }}</div>
+                                        {% if match.icon_url %}
+                                            <img src="{{ match.icon_url }}" alt="{{ match.tier }}" style="max-height: 60px; width: auto;">
+                                            <br>
+                                            <small class="text-muted">{{ match.tier or 'Rank' }}</small>
+                                        {% else %}
+                                            <span class="text-muted">No rank data</span>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
