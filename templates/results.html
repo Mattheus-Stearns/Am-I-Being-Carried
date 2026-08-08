@@ -130,7 +130,6 @@
                                         {% if match.icon_url %}
                                             <img src="{{ match.icon_url }}" alt="{{ match.tier }}" style="max-height: 60px; width: auto;">
                                             <br>
-                                            <small class="text-muted">{{ match.tier or 'Rank' }}</small>
                                         {% else %}
                                             <span class="text-muted">No rank data</span>
                                         {% endif %}
@@ -187,6 +186,91 @@
                                     <div class="p-2">
                                         <h6>MVPs</h6>
                                         <div><strong>{{ match_summary.total_mvps }}</strong></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Carried Score Section - Card Version -->
+                    <div class="card mt-4 {% if carried_score >= 80 %}border-danger{% elif carried_score >= 60 %}border-warning{% elif carried_score >= 40 %}border-info{% else %}border-success{% endif %}">
+                        <div class="card-header {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %} text-white">
+                            <h5><i class="fas {{ carried_icon }}"></i> Carried Detection Algorithm</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Left side - Score -->
+                                <div class="col-md-2 text-center">
+                                    <div style="position: relative; display: inline-block;">
+                                        <svg width="100" height="100">
+                                            <circle cx="50" cy="50" r="40" fill="none" stroke="#e9ecef" stroke-width="8"/>
+                                            <circle cx="50" cy="50" r="40" fill="none" 
+                                                    stroke="{% if carried_score >= 80 %}#dc3545{% elif carried_score >= 60 %}#ffc107{% elif carried_score >= 40 %}#0dcaf0{% else %}#198754{% endif %}" 
+                                                    stroke-width="8"
+                                                    stroke-dasharray="{{ carried_score * 2.513 }} 251.3"
+                                                    stroke-linecap="round"
+                                                    transform="rotate(-90 50 50)"/>
+                                            <text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-size="24" font-weight="bold" fill="#333">
+                                                {{ carried_score }}%
+                                            </text>
+                                        </svg>
+                                    </div>
+                                    <br>
+                                    <span class="badge {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %}" style="font-size: 0.9rem;">
+                                        {{ carried_label }}
+                                    </span>
+                                </div>
+                                
+                                <!-- Right side - Details -->
+                                <div class="col-md-10">
+                                    <p><i class="fas fa-info-circle"></i> {{ carried_description }}</p>
+                                    
+                                    <div class="progress" style="height: 20px; border-radius: 10px;">
+                                        <div class="progress-bar {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %}" role="progressbar"
+                                            style="width: {{ carried_score }}%; font-size: 0.8rem;"
+                                            aria-valuenow="{{ carried_score }}" 
+                                            aria-valuemin="0" aria-valuemax="100">
+                                            {{ carried_score }}% Carried
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-3 col-6">
+                                            <div class="bg-light p-2 rounded">
+                                                <small class="text-muted">Win Rate</small>
+                                                <div><strong class="text-primary">{{ match_summary.win_rate }}%</strong></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 col-6">
+                                            <div class="bg-light p-2 rounded">
+                                                <small class="text-muted">MVP Rate</small>
+                                                <div><strong class="text-success">
+                                                    {% if match_summary.total_matches > 0 %}
+                                                        {{ ((match_summary.total_mvps / match_summary.total_matches) * 100)|round(0) }}%
+                                                    {% else %}
+                                                        0%
+                                                    {% endif %}
+                                                </strong></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 col-6">
+                                            <div class="bg-light p-2 rounded">
+                                                <small class="text-muted">Avg Goals</small>
+                                                <div><strong class="text-warning">{{ "%.1f"|format(match_summary.avg_goals) }}</strong></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 col-6">
+                                            <div class="bg-light p-2 rounded">
+                                                <small class="text-muted">Shot Accuracy</small>
+                                                <div><strong class="text-info">
+                                                    {% if match_summary.total_shots > 0 %}
+                                                        {{ ((match_summary.total_goals / match_summary.total_shots) * 100)|round(0) }}%
+                                                    {% else %}
+                                                        0%
+                                                    {% endif %}
+                                                </strong></div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
