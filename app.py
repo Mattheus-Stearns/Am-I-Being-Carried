@@ -1,7 +1,7 @@
 # Importing key Libraries
 
 import os
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -15,7 +15,7 @@ import redis
 load_dotenv()
 
 # Configure application
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 

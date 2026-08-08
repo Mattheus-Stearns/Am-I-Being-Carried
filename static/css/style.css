@@ -1,0 +1,155 @@
+/* Preloader styles */
+#preloader {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error alert */
+.alert-error {
+    display: none;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    min-width: 300px;
+}
+
+/* Card hover effects */
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+/* Navbar customization */
+.navbar-brand {
+    font-weight: bold;
+}
+
+.nav-link {
+    cursor: pointer;
+}
+
+/* Content fade-in */
+.content-section {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Platform button styling */
+.game-btn {
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.game-btn i {
+    font-size: 1.8rem;
+    margin-bottom: 6px;
+}
+
+.game-btn.active {
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(0,123,255,0.4);
+    border-width: 2px;
+}
+
+.game-btn:not(.active):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Different colors for different platforms (optional) */
+.game-btn[data-game-id="steam"].active {
+    background-color: #1b2838;
+    border-color: #1b2838;
+    color: white;
+}
+
+.game-btn[data-game-id="epic"].active {
+    background-color: #2a2a2a;
+    border-color: #2a2a2a;
+    color: white;
+}
+
+.game-btn[data-game-id="xbox"].active {
+    background-color: #107c10;
+    border-color: #107c10;
+    color: white;
+}
+
+.game-btn[data-game-id="psn"].active {
+    background-color: #003087;
+    border-color: #003087;
+    color: white;
+}
+
+/* Remove the different colors if you want uniform selection */
+/* .game-btn.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+} */
+
+/* Pulse animation for selected button */
+.game-btn.active {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { 
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4);
+    }
+    70% { 
+        box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+    }
+    100% { 
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .game-btn {
+        height: 60px;
+        font-size: 0.9rem;
+    }
+    .game-btn i {
+        font-size: 1.2rem;
+    }
+}
