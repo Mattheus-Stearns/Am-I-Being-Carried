@@ -2,9 +2,10 @@
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
-# Add project root to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory to Python path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app import app, db, Feedback
 

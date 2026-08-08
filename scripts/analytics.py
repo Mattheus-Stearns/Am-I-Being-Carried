@@ -4,12 +4,19 @@ Analytics Script for APICallLog
 Track user counts, region analytics, and API usage statistics
 """
 
+import sys
+import os
+from pathlib import Path
+
+# Add parent directory to path so we can import app
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from app import app, db, APICallLog
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from collections import Counter
 import json
-import sys
 import click
+
 
 class Analytics:
     def __init__(self):

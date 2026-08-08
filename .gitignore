@@ -3,3 +3,9 @@
 .venv/
 __pycache__/
 example_responses/
+scripts/__pycache__/
+scripts/*.pyc
+logs/
+*.log
+*.db
+*.sqlite
