@@ -227,7 +227,10 @@ async function shareResult() {
             return;
         }
         
-        // Generate image
+        // Get the site URL for the watermark/link
+        const siteUrl = window.location.origin;
+        
+        // Generate image with watermark
         const canvas = await html2canvas(card, {
             scale: 2, // Higher quality
             backgroundColor: '#ffffff',
@@ -242,6 +245,32 @@ async function shareResult() {
             }
         });
         
+        // Add watermark/text to the image
+        const ctx = canvas.getContext('2d');
+        
+        // Draw semi-transparent footer with site URL
+        const footerHeight = 40;
+        const gradient = ctx.createLinearGradient(0, canvas.height - footerHeight, 0, canvas.height);
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, canvas.height - footerHeight, canvas.width, footerHeight);
+        
+        // Add text (site URL)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`Check your score at ${siteUrl}`, canvas.width / 2, canvas.height - (footerHeight / 2));
+        
+        // Add small watermark in corner (optional)
+        ctx.font = '12px Arial, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillText('Am I Being Carried?', canvas.width - 10, canvas.height - 5);
+        
         // Convert to image URL
         const imageUrl = canvas.toDataURL('image/png');
         
@@ -249,47 +278,41 @@ async function shareResult() {
         const scoreElement = document.querySelector('[style*="font-size: 4rem;"]');
         const scoreText = scoreElement?.textContent?.trim() || '??';
         
-        // Create share data
-        const shareData = {
-            title: 'Am I Being Carried?',
-            text: `I got a ${scoreText} Carried Score! Check yours at Am I Being Carried?`,
-            url: window.location.origin
-        };
+        // Create share text with link
+        const shareText = `I got a ${scoreText} Carried Score! Check yours at ${siteUrl}`;
         
         // Check if Web Share API is available (mobile/desktop sharing)
         if (navigator.share) {
-            // Try to share the image as a file
             try {
+                // Convert image URL to blob for sharing
                 const response = await fetch(imageUrl);
                 const blob = await response.blob();
                 const file = new File([blob], 'carried-score.png', { type: 'image/png' });
                 
                 await navigator.share({
-                    title: shareData.title,
-                    text: shareData.text,
+                    title: 'Am I Being Carried?',
+                    text: shareText,
                     files: [file],
-                    url: shareData.url
+                    url: siteUrl
                 });
             } catch (shareError) {
-                // If file sharing fails, fallback to text + URL
-                await navigator.share({
-                    title: shareData.title,
-                    text: `${shareData.text} ${shareData.url}`,
-                    url: shareData.url
-                });
+                console.log('Share error (user cancelled or fallback):', shareError);
+                // If file sharing fails or user cancels, try text-only share
+                try {
+                    await navigator.share({
+                        title: 'Am I Being Carried?',
+                        text: shareText,
+                        url: siteUrl
+                    });
+                } catch (textShareError) {
+                    console.log('Text share cancelled or failed');
+                    // Fallback to download
+                    downloadImageAndCopyLink(imageUrl, shareText);
+                }
             }
         } else {
-            // Fallback: Download image + copy link
-            const link = document.createElement('a');
-            link.download = 'carried-score.png';
-            link.href = imageUrl;
-            link.click();
-            
-            // Copy link to clipboard
-            await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-            
-            // Show success message
-            showToast('✅ Image downloaded! Link copied to clipboard.', 'success');
+            // Desktop fallback: Download image + copy link
+            downloadImageAndCopyLink(imageUrl, shareText);
         }
         
         // Reset button
@@ -307,6 +330,23 @@ async function shareResult() {
             shareBtn.disabled = false;
         }
     }
+}
+
+// Helper function for desktop fallback
+function downloadImageAndCopyLink(imageUrl, shareText) {
+    // Download the image
+    const link = document.createElement('a');
+    link.download = 'carried-score.png';
+    link.href = imageUrl;
+    link.click();
+    
+    // Copy text with link to clipboard
+    navigator.clipboard.writeText(shareText).then(() => {
+        showToast('✅ Image downloaded! Link copied to clipboard.', 'success');
+    }).catch(() => {
+        // Fallback: show manual copy instructions
+        showToast('✅ Image downloaded! Share text: ' + shareText, 'info');
+    });
 }
 
 // 7. Refresh Data Function
