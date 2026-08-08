@@ -34,89 +34,89 @@
             <div class="card-header bg-primary text-white">
                 <h4><i class="fas fa-trophy"></i> Recent Competitive Matches</h4>
             </div>
-            <div class="card-body">
-                {% if recent_matches %}
-                    <!-- Carried Score Section -->
-                    <div class="card mt-4 {% if carried_score >= 80 %}border-danger{% elif carried_score >= 60 %}border-warning{% elif carried_score >= 40 %}border-info{% else %}border-success{% endif %}" id="carried-score-card">
-                        <div class="card-header {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %} text-white d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="fas {{ carried_icon }}"></i> Carried Detection Algorithm</h5>
-                            <div>
-                                <button onclick="shareResult()" class="btn btn-sm btn-light">
-                                    <i class="fas fa-share-alt"></i> Share
-                                </button>
-                            </div>
+            {% if recent_matches %}
+                <!-- Carried Score Section -->
+                <div class="card mt-4 {% if carried_score >= 80 %}border-danger{% elif carried_score >= 60 %}border-warning{% elif carried_score >= 40 %}border-info{% else %}border-success{% endif %}" id="carried-score-card">
+                    <div class="card-header {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %} text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas {{ carried_icon }}"></i> Carried Detection Algorithm</h5>
+                        <div>
+                            <button onclick="shareResult()" class="btn btn-sm btn-light">
+                                <i class="fas fa-share-alt"></i> Share
+                            </button>
                         </div>
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-md-3 text-center">
-                                    <!-- Big Score Display -->
-                                    <div class="display-1 {% if carried_score >= 80 %}text-danger{% elif carried_score >= 60 %}text-warning{% elif carried_score >= 40 %}text-info{% else %}text-success{% endif %}" 
-                                        style="font-size: 4rem; font-weight: bold;">
-                                        {{ carried_score }}%
-                                    </div>
-                                    <h5>
-                                        <span class="badge {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %}" style="font-size: 1rem;">
-                                            {{ carried_label }}
-                                        </span>
-                                    </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-3 text-center">
+                                <!-- Big Score Display -->
+                                <div class="display-1 {% if carried_score >= 80 %}text-danger{% elif carried_score >= 60 %}text-warning{% elif carried_score >= 40 %}text-info{% else %}text-success{% endif %}" 
+                                    style="font-size: 4rem; font-weight: bold;">
+                                    {{ carried_score }}%
                                 </div>
-                                <div class="col-md-9">
-                                    <p><i class="fas fa-info-circle"></i> {{ carried_description }}</p>
-                                    
-                                    <div class="progress" style="height: 25px; border-radius: 12px;">
-                                        <div class="progress-bar progress-bar-custom {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %}" 
-                                            role="progressbar" 
-                                            style="width: {{ carried_score }}%; font-size: 0.8rem;"
-                                            aria-valuenow="{{ carried_score }}" 
-                                            aria-valuemin="0" 
-                                            aria-valuemax="100">
-                                            {{ carried_score }}% Carried
+                                <h5>
+                                    <span class="badge {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %}" style="font-size: 1rem;">
+                                        {{ carried_label }}
+                                    </span>
+                                </h5>
+                            </div>
+                            <div class="col-md-9">
+                                <p><i class="fas fa-info-circle"></i> {{ carried_description }}</p>
+                                
+                                <div class="progress" style="height: 25px; border-radius: 12px;">
+                                    <div class="progress-bar progress-bar-custom {% if carried_score >= 80 %}bg-danger{% elif carried_score >= 60 %}bg-warning{% elif carried_score >= 40 %}bg-info{% else %}bg-success{% endif %}" 
+                                        role="progressbar" 
+                                        style="width: {{ carried_score }}%; font-size: 0.8rem;"
+                                        aria-valuenow="{{ carried_score }}" 
+                                        aria-valuemin="0" 
+                                        aria-valuemax="100">
+                                        {{ carried_score }}% Carried
+                                    </div>
+                                </div>
+                                
+                                <!-- Metrics -->
+                                <div class="row mt-3">
+                                    <div class="col-md-3 col-6">
+                                        <div class="bg-light p-2 rounded">
+                                            <small class="text-muted">Win Rate</small>
+                                            <div><strong class="text-primary">{{ match_summary.win_rate }}%</strong></div>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Metrics -->
-                                    <div class="row mt-3">
-                                        <div class="col-md-3 col-6">
-                                            <div class="bg-light p-2 rounded">
-                                                <small class="text-muted">Win Rate</small>
-                                                <div><strong class="text-primary">{{ match_summary.win_rate }}%</strong></div>
-                                            </div>
+                                    <div class="col-md-3 col-6">
+                                        <div class="bg-light p-2 rounded">
+                                            <small class="text-muted">MVP Rate</small>
+                                            <div><strong class="text-success">
+                                                {% if match_summary.total_matches > 0 %}
+                                                    {{ ((match_summary.total_mvps / match_summary.total_matches) * 100)|round(0) }}%
+                                                {% else %}
+                                                    0%
+                                                {% endif %}
+                                            </strong></div>
                                         </div>
-                                        <div class="col-md-3 col-6">
-                                            <div class="bg-light p-2 rounded">
-                                                <small class="text-muted">MVP Rate</small>
-                                                <div><strong class="text-success">
-                                                    {% if match_summary.total_matches > 0 %}
-                                                        {{ ((match_summary.total_mvps / match_summary.total_matches) * 100)|round(0) }}%
-                                                    {% else %}
-                                                        0%
-                                                    {% endif %}
-                                                </strong></div>
-                                            </div>
+                                    </div>
+                                    <div class="col-md-3 col-6">
+                                        <div class="bg-light p-2 rounded">
+                                            <small class="text-muted">Avg Goals</small>
+                                            <div><strong class="text-warning">{{ "%.1f"|format(match_summary.avg_goals) }}</strong></div>
                                         </div>
-                                        <div class="col-md-3 col-6">
-                                            <div class="bg-light p-2 rounded">
-                                                <small class="text-muted">Avg Goals</small>
-                                                <div><strong class="text-warning">{{ "%.1f"|format(match_summary.avg_goals) }}</strong></div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 col-6">
-                                            <div class="bg-light p-2 rounded">
-                                                <small class="text-muted">Shot Accuracy</small>
-                                                <div><strong class="text-info">
-                                                    {% if match_summary.total_shots > 0 %}
-                                                        {{ ((match_summary.total_goals / match_summary.total_shots) * 100)|round(0) }}%
-                                                    {% else %}
-                                                        0%
-                                                    {% endif %}
-                                                </strong></div>
-                                            </div>
+                                    </div>
+                                    <div class="col-md-3 col-6">
+                                        <div class="bg-light p-2 rounded">
+                                            <small class="text-muted">Shot Accuracy</small>
+                                            <div><strong class="text-info">
+                                                {% if match_summary.total_shots > 0 %}
+                                                    {{ ((match_summary.total_goals / match_summary.total_shots) * 100)|round(0) }}%
+                                                {% else %}
+                                                    0%
+                                                {% endif %}
+                                            </strong></div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
+                <div class="card-body">
                     <!-- Match Cards -->
                     {% for match in recent_matches %}
                         <div class="card mb-3 {% if match.result and ('victory' in match.result.lower() or 'win' in match.result.lower()) %}border-success{% elif match.result and ('defeat' in match.result.lower() or 'loss' in match.result.lower()) %}border-danger{% else %}border-secondary{% endif %}">
@@ -272,28 +272,27 @@
                             </div>
                         </div>
                     </div>
-
-                {% else %}
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i> No recent competitive matches found.
-                        {% if total_matches_found|default(0) == 0 %}
-                            <br><small>Debug: No matches were found in the API response.</small>
-                        {% else %}
-                            <br><small>Debug: Found {{ total_matches_found }} matches but none matched the filter criteria.</small>
-                        {% endif %}
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> No recent competitive matches found.
+                    {% if total_matches_found|default(0) == 0 %}
+                        <br><small>Debug: No matches were found in the API response.</small>
+                    {% else %}
+                        <br><small>Debug: Found {{ total_matches_found }} matches but none matched the filter criteria.</small>
+                    {% endif %}
+                </div>
+                
+                <!-- Debug: Show raw data structure -->
+                <div class="card bg-light mt-3">
+                    <div class="card-header">
+                        <h6>Debug: Raw Data Structure</h6>
                     </div>
-                    
-                    <!-- Debug: Show raw data structure -->
-                    <div class="card bg-light mt-3">
-                        <div class="card-header">
-                            <h6>Debug: Raw Data Structure</h6>
-                        </div>
-                        <div class="card-body">
-                            <pre style="max-height: 300px; overflow: auto;">{{ data|tojson(indent=2) }}</pre>
-                        </div>
+                    <div class="card-body">
+                        <pre style="max-height: 300px; overflow: auto;">{{ data|tojson(indent=2) }}</pre>
                     </div>
-                {% endif %}
-            </div>
+                </div>
+            {% endif %}
             <div class="card-footer">
                 <div class="d-flex justify-content-between">
                     <a href="{{ url_for('index') }}" class="btn btn-primary">
