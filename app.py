@@ -243,8 +243,8 @@ def results():
             reverse=True
         )
         
-        # Get last 10 matches
-        recent_matches = all_matches[:10]
+        # Get last 25 matches
+        recent_matches = all_matches[:25]
         
         # Calculate summary statistics
         total_matches = len(recent_matches)
