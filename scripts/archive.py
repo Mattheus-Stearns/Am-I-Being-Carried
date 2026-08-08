@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from app import app, db
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import os
 
@@ -9,7 +9,7 @@ def archive_old_data():
         archive_dir = 'archives'
         os.makedirs(archive_dir, exist_ok=True)
         
-        cutoff = datetime.utcnow() - timedelta(days=365)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=365)
         
         # Archive API logs
         result = db.session.execute("""
@@ -19,7 +19,7 @@ def archive_old_data():
         
         rows = result.fetchall()
         if rows:
-            archive_file = f"{archive_dir}/api_logs_{datetime.utcnow().strftime('%Y%m%d')}.json"
+            archive_file = f"{archive_dir}/api_logs_{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
             
             # Convert to dicts
             data = [dict(row._mapping) for row in rows]

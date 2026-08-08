@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app import app, db
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import click
 
 @click.command()
@@ -19,7 +19,7 @@ import click
 def cleanup(days, dry_run):
     """Clean up old data from the database"""
     with app.app_context():
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         
         print(f"\n{'='*60}")
         print("DATABASE CLEANUP")
