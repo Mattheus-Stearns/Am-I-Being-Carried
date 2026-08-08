@@ -28,46 +28,116 @@
             </div>
         </div>
 
-        <!-- Data Display Card -->
-        <div class="card">
+        <!-- Recent Competitive Matches -->
+        <div class="card mb-4">
             <div class="card-header bg-primary text-white">
-                <h4><i class="fas fa-chart-bar"></i> Player Profile Results</h4>
+                <h4><i class="fas fa-trophy"></i> Recent Competitive Matches (Last 10)</h4>
             </div>
             <div class="card-body">
-                {% if data %}
+                {% if recent_matches %}
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    {% for key in data.keys() %}
-                                        <th>{{ key|capitalize|replace('_', ' ') }}</th>
-                                    {% endfor %}
+                                    <th>#</th>
+                                    <th>Playlist</th>
+                                    <th>Result</th>
+                                    <th>Goals</th>
+                                    <th>Assists</th>
+                                    <th>Saves</th>
+                                    <th>Shots</th>
+                                    <th>Rating</th>
+                                    <th>Rating Change</th>
+                                    <th>Tier</th>
+                                    <th>Date</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    {% for value in data.values() %}
+                                {% for match in recent_matches %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
                                         <td>
-                                            {% if value is mapping %}
-                                                <pre class="mb-0"><code>{{ value|tojson(indent=2) }}</code></pre>
-                                            {% elif value is iterable and value is not string %}
-                                                <ul class="mb-0">
-                                                    {% for item in value %}
-                                                        <li>{{ item }}</li>
-                                                    {% endfor %}
-                                                </ul>
+                                            <span class="badge bg-info">{{ match.playlist }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if match.result == 'victory' or match.result == 'win' %}bg-success{% elif match.result == 'defeat' or match.result == 'loss' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                                {{ match.result|capitalize }}
+                                            </span>
+                                        </td>
+                                        <td>{{ match.goals if match.goals is not none else '-' }}</td>
+                                        <td>{{ match.assists if match.assists is not none else '-' }}</td>
+                                        <td>{{ match.saves if match.saves is not none else '-' }}</td>
+                                        <td>{{ match.shots if match.shots is not none else '-' }}</td>
+                                        <td>
+                                            <strong>{{ match.rating if match.rating is not none else '-' }}</strong>
+                                        </td>
+                                        <td>
+                                            {% if match.rating_delta is not none %}
+                                                <span class="{% if match.rating_delta > 0 %}text-success{% elif match.rating_delta < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                                    {{ match.rating_delta }}
+                                                </span>
                                             {% else %}
-                                                {{ value }}
+                                                -
                                             {% endif %}
                                         </td>
-                                    {% endfor %}
-                                </tr>
+                                        <td>
+                                            {% if match.tier %}
+                                                <span class="badge bg-warning text-dark">{{ match.tier }}</span>
+                                                {% if match.division %}
+                                                    <small class="text-muted">{{ match.division }}</small>
+                                                {% endif %}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small>{{ match.date_collected|format_date }}</small>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- Summary Stats -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h5><i class="fas fa-chart-line"></i> Summary Statistics</h5>
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h6>Total Matches</h6>
+                                                <span class="badge bg-primary" style="font-size: 1.5rem;">{{ match_summary.total_matches }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h6>Wins</h6>
+                                                <span class="badge bg-success" style="font-size: 1.5rem;">{{ match_summary.wins }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h6>Losses</h6>
+                                                <span class="badge bg-danger" style="font-size: 1.5rem;">{{ match_summary.losses }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h6>Win Rate</h6>
+                                                <span class="badge bg-info" style="font-size: 1.5rem;">{{ match_summary.win_rate }}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 {% else %}
                     <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i> No data available. Please perform a search.
+                        <i class="fas fa-exclamation-triangle"></i> No recent competitive matches found.
                     </div>
                 {% endif %}
             </div>
@@ -83,7 +153,7 @@
             </div>
         </div>
 
-        <!-- Debug/Info Section (optional) -->
+        <!-- Debug/Info Section -->
         <div class="card mt-4">
             <div class="card-header bg-secondary text-white">
                 <h6><i class="fas fa-info-circle"></i> Session Information</h6>
@@ -137,7 +207,6 @@ async function refreshData() {
         const result = await response.json();
         
         if (result.success) {
-            // Reload page to show fresh data
             window.location.reload();
         } else {
             showError(result.message || 'Failed to refresh data');

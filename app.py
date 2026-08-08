@@ -150,22 +150,91 @@ def index():
 def results():
     """Display results page"""
     # Check if we have data in session
-    api_data = session.get('api_data')
+    data = session.get('api_data')
     platform = session.get('platform')
     username = session.get('username')
     from_cache = session.get('from_cache', False)
     last_updated = session.get('last_updated')
     
-    if not api_data:
-        flash('No data found. Please perform a search first.', 'warning')
-        return redirect(url_for('index'))
+    # Process matches
+    recent_matches = []
+    competitive_playlists = [
+        'Ranked Duel 1v1',
+        'Ranked Doubles 2v2',
+        'Ranked Standard 3v3'
+    ]
     
-    return render_template('results.html', 
-                         data=api_data,
-                         platform=platform,
-                         username=username,
-                         from_cache=from_cache,
-                         last_updated=last_updated)
+    if data and 'items' in data:
+        all_matches = []
+        for session_item in data['items']:
+            for match in session_item.get('matches', []):
+                playlist = match.get('metadata', {}).get('playlist', '')
+                if playlist in competitive_playlists:
+                    # Extract match data
+                    match_data = {
+                        'playlist': playlist,
+                        'result': match.get('metadata', {}).get('result', 'unknown'),
+                        'date_collected': match.get('metadata', {}).get('dateCollected', ''),
+                        'goals': match.get('stats', {}).get('goals', {}).get('value'),
+                        'assists': match.get('stats', {}).get('assists', {}).get('value'),
+                        'saves': match.get('stats', {}).get('saves', {}).get('value'),
+                        'shots': match.get('stats', {}).get('shots', {}).get('value'),
+                        'rating': match.get('stats', {}).get('rating', {}).get('value'),
+                    }
+                    
+                    # Get rating metadata
+                    rating_metadata = match.get('stats', {}).get('rating', {}).get('metadata', {})
+                    match_data['rating_delta'] = rating_metadata.get('ratingDelta')
+                    match_data['tier'] = rating_metadata.get('tier')
+                    match_data['division'] = rating_metadata.get('division')
+                    
+                    all_matches.append(match_data)
+        
+        # Sort by date and get last 10
+        all_matches.sort(key=lambda x: x['date_collected'], reverse=True)
+        recent_matches = all_matches[:10]
+        
+        # Calculate summary statistics
+        total_matches = len(recent_matches)
+        wins = sum(1 for m in recent_matches if m['result'] and ('victory' in m['result'].lower() or 'win' in m['result'].lower()))
+        losses = total_matches - wins
+        win_rate = round((wins / total_matches * 100) if total_matches > 0 else 0)
+        
+        match_summary = {
+            'total_matches': total_matches,
+            'wins': wins,
+            'losses': losses,
+            'win_rate': win_rate
+        }
+    else:
+        match_summary = {
+            'total_matches': 0,
+            'wins': 0,
+            'losses': 0,
+            'win_rate': 0
+        }
+    
+    return render_template(
+        'results.html',
+        data=data,
+        recent_matches=recent_matches,
+        match_summary=match_summary,
+        username=username,
+        platform=platform,
+        from_cache=from_cache,
+        last_updated=last_updated
+    )
+
+# Custom filter for date formatting
+@app.template_filter('format_date')
+def format_date(date_string):
+    if not date_string:
+        return 'N/A'
+    try:
+        date_obj = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+        return date_obj.strftime('%Y-%m-%d %H:%M')
+    except:
+        return date_string[:16] if date_string else 'N/A'
 
 @app.route('/api/query', methods=['POST'])
 @limiter.limit("2 per hour")
