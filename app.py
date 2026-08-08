@@ -169,9 +169,28 @@ def results():
         'Ranked Standard 3v3'
     ]
     
-    if data and 'items' in data:
+    # IMPORTANT: Extract items from the nested structure
+    # The data might be in data['data']['items'] or data['items']
+    items = []
+    if data:
+        if 'data' in data and 'items' in data['data']:
+            # Nested structure: {"data": {"items": [...]}}
+            items = data['data']['items']
+        elif 'items' in data:
+            # Direct structure: {"items": [...]}
+            items = data['items']
+        else:
+            # Try to find items anywhere
+            for key, value in data.items():
+                if key == 'items' or (isinstance(value, dict) and 'items' in value):
+                    items = value.get('items', [])
+                    break
+    
+    print(f"Found {len(items)} items to process")  # Debug
+    
+    if items:
         # Iterate through all sessions (items)
-        for session_item in data['items']:
+        for session_item in items:
             for match in session_item.get('matches', []):
                 playlist = match.get('metadata', {}).get('playlist', '')
                 is_grouped = match.get('metadata', {}).get('isGrouped', False)
@@ -183,7 +202,10 @@ def results():
                     
                     # Get values safely
                     def get_value(stats_dict, key):
-                        return stats_dict.get(key, {}).get('value')
+                        val = stats_dict.get(key, {})
+                        if isinstance(val, dict):
+                            return val.get('value')
+                        return val
                     
                     match_data = {
                         'playlist': playlist,
@@ -200,13 +222,18 @@ def results():
                     
                     # Get rating information
                     rating_stats = stats.get('rating', {})
-                    match_data['rating'] = rating_stats.get('value')
-                    
-                    # Get rating metadata
-                    rating_metadata = rating_stats.get('metadata', {})
-                    match_data['rating_delta'] = rating_metadata.get('ratingDelta')
-                    match_data['tier'] = rating_metadata.get('tier')
-                    match_data['division'] = rating_metadata.get('division')
+                    if isinstance(rating_stats, dict):
+                        match_data['rating'] = rating_stats.get('value')
+                        # Get rating metadata
+                        rating_metadata = rating_stats.get('metadata', {})
+                        match_data['rating_delta'] = rating_metadata.get('ratingDelta')
+                        match_data['tier'] = rating_metadata.get('tier')
+                        match_data['division'] = rating_metadata.get('division')
+                    else:
+                        match_data['rating'] = None
+                        match_data['rating_delta'] = None
+                        match_data['tier'] = None
+                        match_data['division'] = None
                     
                     all_matches.append(match_data)
         
@@ -285,7 +312,8 @@ def results():
         platform=platform,
         from_cache=from_cache,
         last_updated=last_updated,
-        total_matches_found=len(all_matches)  # For debugging
+        total_matches_found=len(all_matches),
+        debug_items_found=len(items)
     )
 
 # Custom filter for date formatting
