@@ -490,14 +490,12 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(' Copy button initialized');
     }
     
-    // --- Handle Enter key on username field ---
-    const usernameField = document.getElementById('username');
-    if (usernameField) {
-        usernameField.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitApiForm('apiForm');
-            }
+    // Handle form submission (covers Enter key and button click)
+    const form = document.getElementById('apiForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent default form submission
+            submitApiForm('apiForm');
         });
     }
     
