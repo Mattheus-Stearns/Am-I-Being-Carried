@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.0+-green.svg)](https://flask.palletsprojects.com/)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-5.1-purple.svg)](https://getbootstrap.com/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-APACHE-yellow.svg)](LICENSE)
 
 A web application that analyzes Rocket League competitive match data to determine if players are being carried by their teammates. Built with Flask and Bootstrap, featuring real-time stats tracking and a unique "carried score" algorithm.
 
