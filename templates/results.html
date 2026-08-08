@@ -341,17 +341,6 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.addEventListener('click', function(e) {
-        const shareButton = e.target.closest('.share-btn');
-        if (shareButton) {
-            console.log("Share Button Clicked");
-            shareResult();
-        }
-    });
-});
-
-
 async function shareResult() {
     try {
         // Show loading state
@@ -539,5 +528,22 @@ function timeSince(date) {
     if (interval > 1) return Math.floor(interval) + ' minutes ago';
     return Math.floor(seconds) + ' seconds ago';
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded");
+    
+    // Check if button exists
+    const button = document.querySelector('.share-btn');
+    console.log("Share button found:", button);
+    
+    document.addEventListener('click', function(e) {
+        const shareButton = e.target.closest('.share-btn');
+        console.log("Click detected, shareButton:", shareButton);
+        if (shareButton) {
+            console.log("Share Button Clicked");
+            shareResult();
+        }
+    });
+});
 </script>
 {% endblock %}
