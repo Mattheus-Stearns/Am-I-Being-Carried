@@ -466,27 +466,27 @@ def results():
     
     # Determine "carried" category
     if carried_score >= 80:
-        carried_label = "🚨 Heavy Carry"
+        carried_label = "Heavy Carry"
         carried_color = "danger"
         carried_icon = "fa-bullseye"
         carried_description = "You're being significantly carried by your teammates. Focus on improving mechanics and positioning."
     elif carried_score >= 60:
-        carried_label = "⚠️ Sometimes Carried"
+        carried_label = "Sometimes Carried"
         carried_color = "warning"
         carried_icon = "fa-exclamation-triangle"
         carried_description = "You're getting carried some games. Work on consistency and team play."
     elif carried_score >= 40:
-        carried_label = "⚖️ Balanced"
+        carried_label = "Balanced"
         carried_color = "info"
         carried_icon = "fa-balance-scale"
         carried_description = "You're contributing fairly to your wins. Keep improving!"
     elif carried_score >= 20:
-        carried_label = "💪 Contributor"
+        carried_label = "Contributor"
         carried_color = "success"
         carried_icon = "fa-thumbs-up"
         carried_description = "You're pulling your weight in most games. Good job!"
     else:
-        carried_label = "🏆 Carrying Others"
+        carried_label = "Carrying Others"
         carried_color = "primary"
         carried_icon = "fa-trophy"
         carried_description = "You're the one doing the carrying! Keep up the great work!"
