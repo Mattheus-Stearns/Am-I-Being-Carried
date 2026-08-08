@@ -153,7 +153,7 @@ async function submitApiForm(formId) {
     
     try {
         // First, clear the session to force a fresh request
-        console.log('🧹 Clearing session...');
+        console.log(' Clearing session...');
         await fetch('/api/clear_session', {
             method: 'POST',
             headers: {
@@ -212,7 +212,7 @@ async function shareResult() {
         const card = document.getElementById('carried-score-card');
         if (!card) {
             console.error('Card not found');
-            showToast('❌ Card not found to share.', 'danger');
+            showToast(' Card not found to share.', 'danger');
             shareBtn.innerHTML = originalText;
             shareBtn.disabled = false;
             return;
@@ -221,7 +221,7 @@ async function shareResult() {
         // Check if html2canvas is loaded
         if (typeof html2canvas === 'undefined') {
             console.error('html2canvas not loaded');
-            showToast('❌ Share library not loaded. Please refresh and try again.', 'danger');
+            showToast(' Share library not loaded. Please refresh and try again.', 'danger');
             shareBtn.innerHTML = originalText;
             shareBtn.disabled = false;
             return;
@@ -290,7 +290,7 @@ async function shareResult() {
                 });
                 
                 shareSuccessful = true;
-                showToast('✅ Shared successfully!', 'success');
+                showToast(' Shared successfully!', 'success');
                 
             } catch (shareError) {
                 console.log('Share cancelled or failed:', shareError);
@@ -305,14 +305,14 @@ async function shareResult() {
                             url: siteUrl
                         });
                         shareSuccessful = true;
-                        showToast('✅ Shared successfully!', 'success');
+                        showToast(' Shared successfully!', 'success');
                     } catch (textError) {
                         console.log('Text share failed:', textError);
                         // Fall through to desktop fallback
                     }
                 } else {
                     // User cancelled - show a friendly message
-                    showToast('📋 Share cancelled. Link copied to clipboard instead.', 'info');
+                    showToast(' Share cancelled. Link copied to clipboard instead.', 'info');
                     // Still copy to clipboard
                     await navigator.clipboard.writeText(shareText);
                     shareSuccessful = true;
@@ -331,10 +331,10 @@ async function shareResult() {
             // Copy text to clipboard
             try {
                 await navigator.clipboard.writeText(shareText);
-                showToast('✅ Image downloaded! Link copied to clipboard.', 'success');
+                showToast(' Image downloaded! Link copied to clipboard.', 'success');
             } catch (clipError) {
                 // If clipboard fails, show manual copy
-                showToast('✅ Image downloaded! Copy this link: ' + shareText, 'info');
+                showToast(' Image downloaded! Copy this link: ' + shareText, 'info');
             }
         }
         
@@ -344,7 +344,7 @@ async function shareResult() {
         
     } catch (error) {
         console.error('Share error:', error);
-        showToast('❌ Failed to share. Please try again.', 'danger');
+        showToast(' Failed to share. Please try again.', 'danger');
         
         const shareBtn = document.querySelector('.share-btn');
         if (shareBtn) {
@@ -376,7 +376,7 @@ async function copyShareLink() {
         
         // Copy to clipboard
         await navigator.clipboard.writeText(shareText);
-        showToast('✅ Share link copied to clipboard! Share it with your friends.', 'success');
+        showToast(' Share link copied to clipboard! Share it with your friends.', 'success');
         
         if (copyBtn) {
             copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
@@ -387,7 +387,7 @@ async function copyShareLink() {
         }
     } catch (error) {
         console.error('Copy error:', error);
-        showToast('❌ Failed to copy. Please try again.', 'danger');
+        showToast(' Failed to copy. Please try again.', 'danger');
         
         const copyBtn = document.querySelector('.copy-btn');
         if (copyBtn) {
@@ -474,20 +474,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectPlatform(this);
             });
         });
-        console.log('✅ Platform buttons initialized successfully');
+        console.log(' Platform buttons initialized successfully');
     }
     
     // --- Initialize Share Button ---
     const shareButton = document.querySelector('.share-btn');
     if (shareButton) {
         shareButton.addEventListener('click', shareResult);
-        console.log('✅ Share button initialized');
+        console.log(' Share button initialized');
     }
 
     const copyBtn = document.querySelector('.copy-btn');
     if (copyBtn) {
         copyBtn.addEventListener('click', copyShareLink);
-        console.log('✅ Copy button initialized');
+        console.log(' Copy button initialized');
     }
     
     // --- Handle Enter key on username field ---
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    console.log('✅ All initializations complete');
+    console.log(' All initializations complete');
 });
 
 // 10. Make functions globally accessible
@@ -531,4 +531,4 @@ window.hideError = hideError;
 window.showToast = showToast;
 window.timeSince = timeSince;
 
-console.log('✅ All functions loaded and ready');
+console.log(' All functions loaded and ready');

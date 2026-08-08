@@ -43,10 +43,10 @@ def load_authorized_ips():
     # Add IPs to Redis
     if ips:
         redis_client.sadd(WHITELIST_KEY, *ips)
-        print(f"✅ Loaded {len(ips)} authorized IPs from .env")
+        print(f" Loaded {len(ips)} authorized IPs from .env")
         print(f"   IPs: {ips}")
     else:
-        print("⚠️ No authorized IPs found in .env")
+        print(" No authorized IPs found in .env")
     
     return ips
 
@@ -531,8 +531,8 @@ def query_api():
         force_refresh = req_data.get('force_refresh', True)
         
         # DEBUG: Log current session state
-        print(f"🔍 Session before query: {dict(session)}")
-        print(f"📝 Request: platform={platform}, username={username}, force_refresh={force_refresh}")
+        print(f" Session before query: {dict(session)}")
+        print(f" Request: platform={platform}, username={username}, force_refresh={force_refresh}")
         
         if not platform or not username:
             return jsonify({'success': False, 'message': 'Missing platform or username'})
