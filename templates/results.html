@@ -345,6 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', function(e) {
         const shareButton = e.target.closest('.share-btn');
         if (shareButton) {
+            console.log("Share Button Clicked");
             shareResult();
         }
     });
