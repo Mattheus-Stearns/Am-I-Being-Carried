@@ -156,6 +156,11 @@ def results():
     from_cache = session.get('from_cache', False)
     last_updated = session.get('last_updated', None)
     
+    # If we have session data from the request
+    if not data and request.args.get('data'):
+        import json
+        data = json.loads(request.args.get('data'))
+    
     # Process matches - extract all competitive matches
     all_matches = []
     competitive_playlists = [
@@ -171,22 +176,26 @@ def results():
                 playlist = match.get('metadata', {}).get('playlist', '')
                 is_grouped = match.get('metadata', {}).get('isGrouped', False)
                 
-                # Only include competitive matches that aren't grouped summaries
+                # Only include individual competitive matches (not grouped summaries)
                 if playlist in competitive_playlists and not is_grouped:
                     # Extract stats
                     stats = match.get('stats', {})
+                    
+                    # Get values safely
+                    def get_value(stats_dict, key):
+                        return stats_dict.get(key, {}).get('value')
                     
                     match_data = {
                         'playlist': playlist,
                         'result': match.get('metadata', {}).get('result', 'unknown'),
                         'date_collected': match.get('metadata', {}).get('dateCollected', ''),
-                        'goals': stats.get('goals', {}).get('value'),
-                        'assists': stats.get('assists', {}).get('value'),
-                        'saves': stats.get('saves', {}).get('value'),
-                        'shots': stats.get('shots', {}).get('value'),
-                        'mvps': stats.get('mvps', {}).get('value'),
-                        'matches_played': stats.get('matchesPlayed', {}).get('value'),
-                        'wins': stats.get('wins', {}).get('value'),
+                        'goals': get_value(stats, 'goals'),
+                        'assists': get_value(stats, 'assists'),
+                        'saves': get_value(stats, 'saves'),
+                        'shots': get_value(stats, 'shots'),
+                        'mvps': get_value(stats, 'mvps'),
+                        'matches_played': get_value(stats, 'matchesPlayed'),
+                        'wins': get_value(stats, 'wins'),
                     }
                     
                     # Get rating information
@@ -207,7 +216,7 @@ def results():
             reverse=True
         )
         
-        # Get last 10 matches (or all if less than 10)
+        # Get last 10 matches
         recent_matches = all_matches[:10]
         
         # Calculate summary statistics
@@ -223,11 +232,11 @@ def results():
         wins = sum(1 for m in recent_matches if is_win(m['result']))
         losses = sum(1 for m in recent_matches if not is_win(m['result']) and m['result'])
         
-        total_goals = sum(m['goals'] or 0 for m in recent_matches)
-        total_assists = sum(m['assists'] or 0 for m in recent_matches)
-        total_saves = sum(m['saves'] or 0 for m in recent_matches)
-        total_shots = sum(m['shots'] or 0 for m in recent_matches)
-        total_mvps = sum(m['mvps'] or 0 for m in recent_matches)
+        total_goals = sum(m.get('goals') or 0 for m in recent_matches)
+        total_assists = sum(m.get('assists') or 0 for m in recent_matches)
+        total_saves = sum(m.get('saves') or 0 for m in recent_matches)
+        total_shots = sum(m.get('shots') or 0 for m in recent_matches)
+        total_mvps = sum(m.get('mvps') or 0 for m in recent_matches)
         
         win_rate = round((wins / total_matches * 100) if total_matches > 0 else 0)
         
@@ -264,6 +273,9 @@ def results():
             'avg_shots': 0,
         }
     
+    # Debug info to see what matches were found
+    print(f"Found {len(all_matches)} total matches, showing {len(recent_matches)} recent")
+    
     return render_template(
         'results.html',
         data=data,
@@ -272,7 +284,8 @@ def results():
         username=username,
         platform=platform,
         from_cache=from_cache,
-        last_updated=last_updated
+        last_updated=last_updated,
+        total_matches_found=len(all_matches)  # For debugging
     )
 
 # Custom filter for date formatting
