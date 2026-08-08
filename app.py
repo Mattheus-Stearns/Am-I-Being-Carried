@@ -67,7 +67,7 @@ limiter = Limiter(
     key_func=get_remote_address,
     app=app,
     storage_uri="redis://localhost:6379/0",
-    default_limits=["100 per minute"],
+    default_limits=["100 per day", "20 per hour"],
 )
 
 # Exempt authorized IPs from rate limiting
@@ -80,9 +80,9 @@ def ip_authorized_filter():
 @app.errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({
-        'error': 'Rate limit exceeded',
-        'message': '2 per 1 hour',
-        'retry_after': None
+        'success': False,
+        'message': 'Rate limit exceeded. Please wait 5 minutes before making another request.',
+        'retry_after': 300  # 5 minutes in seconds
     }), 429
 
 # Initialize and connect your server-side session database
@@ -521,7 +521,7 @@ def format_date(date_string):
         return date_string[:16] if date_string else 'N/A'
 
 @app.route('/api/query', methods=['POST'])
-@limiter.limit("2 per hour")
+@limiter.limit("1 per 5 minutes")
 def query_api():
     """Handle API query with session caching"""
     try:
