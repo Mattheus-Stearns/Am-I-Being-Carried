@@ -229,11 +229,13 @@ def results():
                         match_data['rating_delta'] = rating_metadata.get('ratingDelta')
                         match_data['tier'] = rating_metadata.get('tier')
                         match_data['division'] = rating_metadata.get('division')
+                        match_data['icon_url'] = rating_metadata.get('iconUrl')
                     else:
                         match_data['rating'] = None
                         match_data['rating_delta'] = None
                         match_data['tier'] = None
                         match_data['division'] = None
+                        match_data['icon_url'] = rating_metadata.get('iconUrl')
                     
                     all_matches.append(match_data)
         
