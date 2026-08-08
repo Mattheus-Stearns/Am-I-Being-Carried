@@ -172,3 +172,53 @@ input::-webkit-contacts-auto-fill-button {
     position: absolute;
     right: 0;
 }
+
+/* Star Rating Styles */
+.star-rating .fa-star {
+    cursor: pointer;
+    transition: color 0.2s;
+    font-size: 1.2rem;
+}
+
+.star-rating .fa-star:hover {
+    transform: scale(1.2);
+    transition: transform 0.2s;
+}
+
+.star-rating .fa-star.text-secondary {
+    color: #6c757d !important;
+}
+
+/* Feedback Form */
+#feedbackForm textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+#feedbackForm .alert {
+    font-size: 0.9rem;
+}
+
+/* Admin Feedback Table */
+.table td {
+    vertical-align: middle;
+}
+
+/* Toast notifications */
+.custom-toast {
+    animation: slideUp 0.3s ease-out;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: none;
+    border-radius: 8px;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

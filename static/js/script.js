@@ -458,7 +458,115 @@ function clearAndSearch() {
     }
 }
 
-// 9. Initialize Everything
+// 9. Feedback
+
+// Star rating for feedback
+let selectedRating = 0;
+
+function setRating(rating) {
+    selectedRating = rating;
+    document.getElementById('feedbackRating').value = rating;
+    
+    // Update star display
+    const stars = document.querySelectorAll('.star-rating .fa-star');
+    stars.forEach((star, index) => {
+        if (index < rating) {
+            star.classList.add('text-warning');
+            star.classList.remove('text-secondary');
+        } else {
+            star.classList.remove('text-warning');
+            star.classList.add('text-secondary');
+        }
+    });
+}
+
+// Submit feedback
+async function submitFeedback(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('feedbackName').value.trim();
+    const email = document.getElementById('feedbackEmail').value.trim();
+    const rating = parseInt(document.getElementById('feedbackRating').value);
+    const message = document.getElementById('feedbackMessage').value.trim();
+    const statusDiv = document.getElementById('feedbackStatus');
+    
+    // Validate
+    if (!message) {
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger alert-sm mb-0">
+                <i class="fas fa-exclamation-triangle"></i> Please enter your feedback message.
+            </div>
+        `;
+        return;
+    }
+    
+    // Show loading
+    const submitBtn = document.querySelector('#feedbackForm button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    submitBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                email: email,
+                rating: rating,
+                message: message,
+                page_url: window.location.href
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            statusDiv.innerHTML = `
+                <div class="alert alert-success alert-sm mb-0">
+                    <i class="fas fa-check-circle"></i> ${result.message}
+                </div>
+            `;
+            // Reset form
+            document.getElementById('feedbackForm').reset();
+            setRating(0);
+            document.getElementById('feedbackRating').value = 0;
+            
+            // Reset stars
+            document.querySelectorAll('.star-rating .fa-star').forEach(star => {
+                star.classList.remove('text-warning');
+                star.classList.add('text-secondary');
+            });
+        } else {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger alert-sm mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> ${result.message}
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Feedback error:', error);
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger alert-sm mb-0">
+                <i class="fas fa-exclamation-triangle"></i> Failed to submit feedback. Please try again.
+            </div>
+        `;
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        
+        // Auto-hide status after 5 seconds
+        setTimeout(() => {
+            if (statusDiv.innerHTML) {
+                statusDiv.innerHTML = '';
+            }
+        }, 5000);
+    }
+}
+
+// 10. Initialize Everything
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded - initializing');
     
@@ -516,7 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log(' All initializations complete');
 });
 
-// 10. Make functions globally accessible
+// 11. Make functions globally accessible
 window.selectPlatform = selectPlatform;
 window.submitApiForm = submitApiForm;
 window.shareResult = shareResult;

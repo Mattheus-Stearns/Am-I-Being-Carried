@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone, time
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import redis
+import re
 
 load_dotenv()
 
@@ -127,6 +128,23 @@ class APICallLog(db.Model):
     error_message = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     response_size = db.Column(db.Integer)  # Size of response in bytes
+
+class Feedback(db.Model):
+    __tablename__ = 'feedback'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    email = db.Column(db.String(100))
+    rating = db.Column(db.Integer)  # 1-5 stars
+    message = db.Column(db.Text, nullable=False)
+    page_url = db.Column(db.String(255))
+    user_agent = db.Column(db.String(255))
+    ip_address = db.Column(db.String(45))
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Feedback {self.id}: {self.message[:30]}>'
 
 # Create tables when the app starts
 with app.app_context():
@@ -743,3 +761,55 @@ def session_status():
         'username': session.get('username'),
         'last_query': session.get('last_query_time')
     })
+
+# Email validation helper
+def is_valid_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+@app.route('/api/feedback', methods=['POST'])
+def submit_feedback():
+    try:
+        data = request.json
+        
+        # Validate required fields
+        if not data.get('message'):
+            return jsonify({
+                'success': False,
+                'message': 'Message is required'
+            }), 400
+        
+        # Validate email if provided
+        email = data.get('email', '').strip()
+        if email and not is_valid_email(email):
+            return jsonify({
+                'success': False,
+                'message': 'Please enter a valid email address'
+            }), 400
+        
+        # Create feedback entry
+        feedback = Feedback(
+            name=data.get('name', '').strip(),
+            email=email,
+            rating=data.get('rating', 0),
+            message=data['message'].strip(),
+            page_url=data.get('page_url', ''),
+            user_agent=request.headers.get('User-Agent', ''),
+            ip_address=request.remote_addr
+        )
+        
+        db.session.add(feedback)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Thank you for your feedback!'
+        }), 200
+        
+    except Exception as e:
+        print(f"Feedback error: {e}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': 'Failed to submit feedback. Please try again.'
+        }), 500
