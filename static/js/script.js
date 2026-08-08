@@ -128,7 +128,7 @@ async function submitApiForm(formId) {
         showError('Please select a platform first!');
         const statusEl = document.getElementById('platformStatus');
         if (statusEl) {
-            statusEl.textContent = '⚠️ Please select a platform!';
+            statusEl.textContent = 'Please select a platform!';
             statusEl.style.color = 'red';
         }
         return;
@@ -149,7 +149,7 @@ async function submitApiForm(formId) {
     const data = Object.fromEntries(formData.entries());
     
     data.force_refresh = true;
-    console.log('📦 Form data with force_refresh:', data);
+    console.log('Form data with force_refresh:', data);
     
     try {
         // First, clear the session to force a fresh request
@@ -160,10 +160,10 @@ async function submitApiForm(formId) {
                 'Content-Type': 'application/json',
             }
         });
-        console.log('✅ Session cleared');
+        console.log('Session cleared');
         
         // Then make the API query
-        console.log('🚀 Making API query...');
+        console.log('Making API query...');
         const response = await fetch('/api/query', {
             method: 'POST',
             headers: {
@@ -212,7 +212,7 @@ async function shareResult() {
         const card = document.getElementById('carried-score-card');
         if (!card) {
             console.error('Card not found');
-            showToast('❌ Card not found to share.', 'danger');
+            showToast('Card not found to share.', 'danger');
             shareBtn.innerHTML = originalText;
             shareBtn.disabled = false;
             return;
@@ -221,7 +221,7 @@ async function shareResult() {
         // Check if html2canvas is loaded
         if (typeof html2canvas === 'undefined') {
             console.error('html2canvas not loaded');
-            showToast('❌ Share library not loaded. Please refresh and try again.', 'danger');
+            showToast('Share library not loaded. Please refresh and try again.', 'danger');
             shareBtn.innerHTML = originalText;
             shareBtn.disabled = false;
             return;
@@ -342,10 +342,10 @@ function downloadImageAndCopyLink(imageUrl, shareText) {
     
     // Copy text with link to clipboard
     navigator.clipboard.writeText(shareText).then(() => {
-        showToast('✅ Image downloaded! Link copied to clipboard.', 'success');
+        showToast('Image downloaded! Link copied to clipboard.', 'success');
     }).catch(() => {
         // Fallback: show manual copy instructions
-        showToast('✅ Image downloaded! Share text: ' + shareText, 'info');
+        showToast('Image downloaded! Share text: ' + shareText, 'info');
     });
 }
 
