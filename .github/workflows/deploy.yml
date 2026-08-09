@@ -40,6 +40,10 @@ jobs:
             EOF
             
             chmod 600 .env
+
+            mkdir -p ip_2_geo_db
+            curl -o ip_2_geo_db/GeoLite2-City.mmdb \
+                "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${{ secrets.MAXMIND_LICENSE_KEY }}&suffix=mmdb"
             
             # Restart the service
             sudo systemctl restart amibeingcarried

@@ -5,7 +5,4 @@ __pycache__/
 example_responses/
 scripts/__pycache__/
 scripts/*.pyc
-logs/
-*.log
-*.db
-*.sqlite
+ip_2_geo_db/
