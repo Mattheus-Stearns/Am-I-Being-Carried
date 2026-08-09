@@ -129,6 +129,8 @@ class APICallLog(db.Model):
     error_message = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     response_size = db.Column(db.Integer)  # Size of response in bytes
+    ip_address = db.Column(db.String(45))
+    region = db.Column(db.String(10)) 
 
 class Feedback(db.Model):
     __tablename__ = 'feedback'
@@ -311,6 +313,17 @@ def calculate_carried_score(match_summary, recent_matches):
         carried_score = min(carried_score, 30)  # Not carried, they're good
     
     return carried_score
+
+def get_client_ip():
+    """Get client IP address from request"""
+    # Check for forwarded IP (if behind proxy/nginx)
+    if request.headers.get('X-Forwarded-For'):
+        ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+        return ip
+    elif request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP')
+    else:
+        return request.remote_addr
 
 # Routes
 
@@ -543,7 +556,7 @@ def format_date(date_string):
 @limiter.limit("1 per 5 minutes")
 def query_api():
     """Handle API query with session caching"""
-    start_time = datetime.utcnow()
+    start_time = datetime.now(timezone.utc)
     platform = None
     username = None
     
@@ -592,8 +605,9 @@ def query_api():
                     success=True,
                     response_code=200,
                     error_message=None,
-                    timestamp=datetime.utcnow(),
-                    response_size=len(json.dumps(session_data)) if session_data else 0
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=len(json.dumps(session_data)) if session_data else 0,
+                    ip_address=get_client_ip()
                 )
                 db.session.add(log)
                 db.session.commit()
@@ -654,7 +668,7 @@ def query_api():
                         success=True,
                         response_code=200,
                         error_message=None,
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(timezone.utc),
                         response_size=len(json.dumps(existing_profile.data)) if existing_profile.data else 0
                     )
                     db.session.add(log)
@@ -689,7 +703,7 @@ def query_api():
                     success=False,
                     response_code=500,
                     error_message='Server configuration error - API_KEY missing',
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     response_size=0
                 )
                 db.session.add(log)
@@ -762,7 +776,7 @@ def query_api():
                     success=True,
                     response_code=response.status_code,
                     error_message=None,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     response_size=response_size
                 )
                 db.session.add(log)
@@ -789,7 +803,7 @@ def query_api():
                     success=False,
                     response_code=response.status_code,
                     error_message=f'API returned status {response.status_code}',
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     response_size=response_size
                 )
                 db.session.add(log)
@@ -817,7 +831,7 @@ def query_api():
                 success=False,
                 response_code=500,
                 error_message=f'Unexpected error: {str(e)}',
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 response_size=0
             )
             db.session.add(log)
@@ -857,7 +871,7 @@ def refresh_data():
                     success=False,
                     response_code=500,
                     error_message='Server configuration error - API_KEY missing',
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     response_size=0
                 )
                 db.session.add(log)
@@ -922,7 +936,7 @@ def refresh_data():
                         success=True,
                         response_code=response.status_code,
                         error_message=None,
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(timezone.utc),
                         response_size=response_size
                     )
                     db.session.add(log)
@@ -946,7 +960,7 @@ def refresh_data():
                         success=False,
                         response_code=response.status_code,
                         error_message=f'Refresh API returned {response.status_code}',
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(timezone.utc),
                         response_size=response_size
                     )
                     db.session.add(log)
@@ -968,7 +982,7 @@ def refresh_data():
                     success=False,
                     response_code=408,
                     error_message='Refresh request timed out',
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     response_size=0
                 )
                 db.session.add(log)
@@ -990,7 +1004,7 @@ def refresh_data():
                     success=False,
                     response_code=500,
                     error_message=f'Refresh error: {str(e)}',
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     response_size=0
                 )
                 db.session.add(log)
@@ -1012,7 +1026,7 @@ def refresh_data():
                 success=False,
                 response_code=500,
                 error_message=f'Unexpected refresh error: {str(e)}',
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 response_size=0
             )
             db.session.add(log)
