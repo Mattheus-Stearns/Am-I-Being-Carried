@@ -17,6 +17,7 @@ if __name__ == "__main__":
         print("  analytics stats [--days N]")
         print("  analytics daily [--days N]")
         print("  analytics topusers [--days N] [--limit N]")
+        print("  analyze_failures")
         print("  cleanup [--days N] [--dry-run]")
         print("  check_db")
         print("  monitor")
@@ -53,5 +54,8 @@ if __name__ == "__main__":
     elif script == "view_feedback":
         from scripts.view_feedback import view_feedback
         view_feedback()
+    elif script == "analyze_failures":
+        from scripts.analyze_failures import analyze_failures
+        analyze_failures()
     else:
         print(f"Unknown script: {script}")

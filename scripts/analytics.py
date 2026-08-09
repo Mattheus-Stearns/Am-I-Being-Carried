@@ -16,7 +16,30 @@ from datetime import datetime, timedelta, timezone
 from collections import Counter
 import json
 import click
+import geoip2.database
 
+GEOIP_DB_PATH = '/path/to/GeoLite2-City.mmdb'
+
+def get_region_from_ip(ip_address):
+    """Get region from IP address using GeoIP"""
+    try:
+        reader = geoip2.database.Reader(GEOIP_DB_PATH)
+        response = reader.city(ip_address)
+        continent = response.continent.code if response.continent else None
+        
+        # Map continent to your regions
+        region_map = {
+            'NA': 'NA',  # North America
+            'SA': 'SAM', # South America
+            'EU': 'EU',  # Europe
+            'AF': 'Other', # Africa
+            'AS': 'ASIA', # Asia
+            'OC': 'OCE', # Oceania
+            'AN': 'Other' # Antarctica
+        }
+        return region_map.get(continent, 'Other')
+    except Exception as e:
+        return 'Other'
 
 class Analytics:
     def __init__(self):
