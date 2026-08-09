@@ -17,34 +17,59 @@ from collections import Counter
 import json
 import click
 import geoip2.database
+from geoip2.errors import AddressNotFoundError
 
-GEOIP_DB_PATH = '/path/to/GeoLite2-City.mmdb'
-
-def get_region_from_ip(ip_address):
-    """Get region from IP address using GeoIP"""
-    try:
-        reader = geoip2.database.Reader(GEOIP_DB_PATH)
-        response = reader.city(ip_address)
-        continent = response.continent.code if response.continent else None
-        
-        # Map continent to your regions
-        region_map = {
-            'NA': 'NA',  # North America
-            'SA': 'SAM', # South America
-            'EU': 'EU',  # Europe
-            'AF': 'Other', # Africa
-            'AS': 'ASIA', # Asia
-            'OC': 'OCE', # Oceania
-            'AN': 'Other' # Antarctica
-        }
-        return region_map.get(continent, 'Other')
-    except Exception as e:
-        return 'Other'
+# Configure GeoIP database path - using pathlib
+PROJECT_ROOT = Path(__file__).parent.parent
+GEOIP_DB_PATH = PROJECT_ROOT / 'ip_2_geo_db' / 'GeoLite2-City.mmdb'
 
 class Analytics:
     def __init__(self):
         self.app = app
         self.db = db
+        self.geoip_reader = None
+        self._init_geoip()
+    
+    def _init_geoip(self):
+        """Initialize GeoIP reader"""
+        try:
+            if os.path.exists(GEOIP_DB_PATH):
+                self.geoip_reader = geoip2.database.Reader(GEOIP_DB_PATH)
+                print(f"GeoIP database loaded from: {GEOIP_DB_PATH}")
+            else:
+                print(f"Warning: GeoIP database not found at {GEOIP_DB_PATH}")
+                print(f"Current directory: {os.getcwd()}")
+                print(f"Looking for: {GEOIP_DB_PATH}")
+                self.geoip_reader = None
+        except Exception as e:
+            print(f"Warning: Failed to load GeoIP database: {e}")
+            self.geoip_reader = None
+    
+    def get_region_from_ip(self, ip_address):
+        """Get region from IP address using GeoIP"""
+        if not self.geoip_reader:
+            return 'Other'
+        
+        try:
+            response = self.geoip_reader.city(ip_address)
+            continent = response.continent.code if response.continent else None
+            
+            # Map continent codes to your regions
+            region_map = {
+                'NA': 'NA',      # North America
+                'SA': 'SAM',     # South America
+                'EU': 'EU',      # Europe
+                'AF': 'Other',   # Africa
+                'AS': 'ASIA',    # Asia
+                'OC': 'OCE',     # Oceania
+                'AN': 'Other'    # Antarctica
+            }
+            return region_map.get(continent, 'Other')
+        except AddressNotFoundError:
+            return 'Other'
+        except Exception as e:
+            print(f"Error getting region for IP {ip_address}: {e}")
+            return 'Other'
         
     def get_user_count(self, days=30):
         """Get unique user count for the last N days"""
@@ -106,67 +131,7 @@ class Analytics:
                 'region_stats': regions,
                 'total_users': len(user_list)
             }
-    
-    def _detect_regions(self, logs):
-        """Detect regions based on platform and patterns"""
-        regions = {
-            'NA': {'total': 0, 'users': set()},
-            'EU': {'total': 0, 'users': set()},
-            'OCE': {'total': 0, 'users': set()},
-            'SAM': {'total': 0, 'users': set()},
-            'ME': {'total': 0, 'users': set()},
-            'ASIA': {'total': 0, 'users': set()},
-            'Other': {'total': 0, 'users': set()}
-        }
-        
-        # Simple region mapping based on platform
-        for log in logs:
-            user_key = f"{log.platform}_{log.username}"
-            region = 'Other'
-            
-            # Simple heuristics for region detection
-            # (You can enhance this with actual IP geolocation)
-            if log.platform in ['epic', 'steam']:
-                # These are global platforms, can't determine region
-                region = 'Other'
-            elif log.platform == 'psn':
-                # PSN can be region-specific but we don't have that data
-                region = 'Other'
-            elif log.platform == 'xbox':
-                region = 'Other'
-            
-            # If you want to use username patterns for region
-            # Example: .uk, .eu, .au, etc. in usernames
-            if log.username and '.' in log.username:
-                suffix = log.username.split('.')[-1].lower()
-                if suffix in ['uk', 'eu']:
-                    region = 'EU'
-                elif suffix in ['au', 'nz']:
-                    region = 'OCE'
-                elif suffix in ['br', 'ar']:
-                    region = 'SAM'
-            
-            # Or use prefix patterns
-            if log.username:
-                username_lower = log.username.lower()
-                if username_lower.startswith('na_'):
-                    region = 'NA'
-                elif username_lower.startswith('eu_'):
-                    region = 'EU'
-                elif username_lower.startswith('au_'):
-                    region = 'OCE'
-                elif username_lower.startswith('br_'):
-                    region = 'SAM'
-            
-            regions[region]['total'] += 1
-            regions[region]['users'].add(user_key)
-        
-        # Convert sets to counts
-        for region in regions:
-            regions[region]['user_count'] = len(regions[region]['users'])
-            del regions[region]['users']  # Remove set for clean output
-        
-        return regions
+
     
     def get_daily_stats(self, days=30):
         """Get daily statistics for the last N days"""
