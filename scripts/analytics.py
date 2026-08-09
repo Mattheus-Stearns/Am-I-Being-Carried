@@ -19,9 +19,8 @@ import click
 import geoip2.database
 from geoip2.errors import AddressNotFoundError
 
-# Configure GeoIP database path - using pathlib
-PROJECT_ROOT = Path(__file__).parent.parent
-GEOIP_DB_PATH = PROJECT_ROOT / 'ip_2_geo_db' / 'GeoLite2-City.mmdb'
+# Configure GeoIP database path
+GEOIP_DB_PATH = Path(__file__).parent.parent / 'ip_2_geo_db' / 'GeoLite2-City.mmdb'
 
 class Analytics:
     def __init__(self):
@@ -33,13 +32,12 @@ class Analytics:
     def _init_geoip(self):
         """Initialize GeoIP reader"""
         try:
-            if os.path.exists(GEOIP_DB_PATH):
-                self.geoip_reader = geoip2.database.Reader(GEOIP_DB_PATH)
+            if GEOIP_DB_PATH.exists():
+                self.geoip_reader = geoip2.database.Reader(str(GEOIP_DB_PATH))
                 print(f"GeoIP database loaded from: {GEOIP_DB_PATH}")
             else:
                 print(f"Warning: GeoIP database not found at {GEOIP_DB_PATH}")
-                print(f"Current directory: {os.getcwd()}")
-                print(f"Looking for: {GEOIP_DB_PATH}")
+                print(f"Please download GeoLite2-City.mmdb to ip_2_geo_db/")
                 self.geoip_reader = None
         except Exception as e:
             print(f"Warning: Failed to load GeoIP database: {e}")
@@ -48,6 +46,10 @@ class Analytics:
     def get_region_from_ip(self, ip_address):
         """Get region from IP address using GeoIP"""
         if not self.geoip_reader:
+            return 'Other'
+        
+        # Handle local/private IPs
+        if ip_address.startswith('127.') or ip_address.startswith('192.168.') or ip_address.startswith('10.'):
             return 'Other'
         
         try:
@@ -70,13 +72,85 @@ class Analytics:
         except Exception as e:
             print(f"Error getting region for IP {ip_address}: {e}")
             return 'Other'
+    
+    def _detect_region_from_username(self, username):
+        """Detect region from username patterns"""
+        if not username:
+            return 'Other'
         
+        username_lower = username.lower()
+        
+        region_patterns = {
+            'NA': ['na_', '_na', 'north', 'america', 'us_', '_us', 'ca_', '_ca', 'usa', 'canada'],
+            'EU': ['eu_', '_eu', 'europe', 'uk_', '_uk', 'de_', '_de', 'fr_', '_fr', 'germany', 'france'],
+            'OCE': ['oce_', '_oce', 'au_', '_au', 'nz_', '_nz', 'australia', 'newzealand'],
+            'SAM': ['sam_', '_sam', 'br_', '_br', 'brazil', 'arg_', '_arg', 'latam', 'southamerica'],
+            'ME': ['me_', '_me', 'middleeast', 'uae', 'dubai', 'ksa', 'middle_east'],
+            'ASIA': ['asia', 'jp_', '_jp', 'kr_', '_kr', 'cn_', '_cn', 'sg_', '_sg', 'japan', 'korea', 'china']
+        }
+        
+        for region_name, patterns in region_patterns.items():
+            for pattern in patterns:
+                if pattern in username_lower:
+                    return region_name
+        
+        return 'Other'
+    
+    def _detect_region_from_platform(self, platform):
+        """Fallback: detect region from platform"""
+        # This is a simple default mapping for global platforms
+        platform_regions = {
+            'epic': 'Other',   # Global platform
+            'steam': 'Other',  # Global platform
+            'psn': 'Other',    # Global platform
+            'xbox': 'Other',   # Global platform
+            'switch': 'Other'  # Global platform
+        }
+        return platform_regions.get(platform, 'Other')
+    
+    def _detect_regions(self, logs):
+        """Detect regions using GeoIP or fallback methods"""
+        regions = {
+            'NA': {'total': 0, 'users': set()},
+            'EU': {'total': 0, 'users': set()},
+            'OCE': {'total': 0, 'users': set()},
+            'SAM': {'total': 0, 'users': set()},
+            'ME': {'total': 0, 'users': set()},
+            'ASIA': {'total': 0, 'users': set()},
+            'Other': {'total': 0, 'users': set()}
+        }
+        
+        for log in logs:
+            user_key = f"{log.platform}_{log.username}"
+            region = 'Other'
+            
+            # Try GeoIP first (if we have IP address)
+            if hasattr(log, 'ip_address') and log.ip_address:
+                region = self.get_region_from_ip(log.ip_address)
+            
+            # Fallback: username patterns
+            if region == 'Other' and hasattr(log, 'username') and log.username:
+                region = self._detect_region_from_username(log.username)
+            
+            # Final fallback: platform-based
+            if region == 'Other' and hasattr(log, 'platform'):
+                region = self._detect_region_from_platform(log.platform)
+            
+            regions[region]['total'] += 1
+            regions[region]['users'].add(user_key)
+        
+        # Convert sets to counts
+        for region in regions:
+            regions[region]['user_count'] = len(regions[region]['users'])
+            del regions[region]['users']
+        
+        return regions
+    
     def get_user_count(self, days=30):
         """Get unique user count for the last N days"""
         with self.app.app_context():
             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             
-            # Count unique users (platform + username combinations)
             users = self.db.session.query(
                 APICallLog.platform, 
                 APICallLog.username
@@ -91,7 +165,6 @@ class Analytics:
         with self.app.app_context():
             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             
-            # Get all logs in date range
             logs = APICallLog.query.filter(
                 APICallLog.timestamp >= cutoff
             ).all()
@@ -99,7 +172,6 @@ class Analytics:
             if not logs:
                 return None
             
-            # Count unique users by platform
             platform_counts = Counter()
             user_list = set()
             platform_users = {}
@@ -113,11 +185,9 @@ class Analytics:
                     platform_users[log.platform] = set()
                 platform_users[log.platform].add(log.username)
             
-            # Success/failure stats
             successful = sum(1 for log in logs if log.success)
             failed = len(logs) - successful
             
-            # Region detection based on platform patterns
             regions = self._detect_regions(logs)
             
             return {
@@ -131,21 +201,18 @@ class Analytics:
                 'region_stats': regions,
                 'total_users': len(user_list)
             }
-
     
     def get_daily_stats(self, days=30):
         """Get daily statistics for the last N days"""
         with self.app.app_context():
             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             
-            # Group by day
             daily_stats = {}
             
             for day in range(days):
                 date = datetime.now(timezone.utc) - timedelta(days=day)
                 date_str = date.strftime('%Y-%m-%d')
                 
-                # Get logs for this day
                 day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
                 day_end = day_start + timedelta(days=1)
                 
@@ -206,6 +273,7 @@ class Analytics:
                 error_counts[error.error_message or 'Unknown Error'] += 1
             
             return dict(error_counts)
+
 
 # ============================================
 # CLI Commands
@@ -308,9 +376,6 @@ def errors(days):
 @cli.command()
 def totalusers():
     """Show total unique users all time"""
-    analytics = Analytics()
-    
-    # Get all unique users
     with app.app_context():
         users = db.session.query(
             APICallLog.platform, 
