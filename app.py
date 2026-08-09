@@ -59,10 +59,15 @@ def is_ip_authorized(ip):
     return redis_client.sismember(WHITELIST_KEY, ip)
 
 def get_client_ip():
-    """Get client IP behind nginx"""
+    """Get client IP address from request"""
+    # Check for forwarded IP (if behind proxy/nginx)
     if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0]
-    return request.remote_addr
+        ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+        return ip
+    elif request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP')
+    else:
+        return request.remote_addr
 
 # Initialize rate limiter with Redis
 limiter = Limiter(
@@ -313,17 +318,6 @@ def calculate_carried_score(match_summary, recent_matches):
         carried_score = min(carried_score, 30)  # Not carried, they're good
     
     return carried_score
-
-def get_client_ip():
-    """Get client IP address from request"""
-    # Check for forwarded IP (if behind proxy/nginx)
-    if request.headers.get('X-Forwarded-For'):
-        ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
-        return ip
-    elif request.headers.get('X-Real-IP'):
-        return request.headers.get('X-Real-IP')
-    else:
-        return request.remote_addr
 
 # Routes
 
@@ -669,7 +663,8 @@ def query_api():
                         response_code=200,
                         error_message=None,
                         timestamp=datetime.now(timezone.utc),
-                        response_size=len(json.dumps(existing_profile.data)) if existing_profile.data else 0
+                        response_size=len(json.dumps(existing_profile.data)) if existing_profile.data else 0,
+                        ip_address=get_client_ip()
                     )
                     db.session.add(log)
                     db.session.commit()
@@ -704,7 +699,8 @@ def query_api():
                     response_code=500,
                     error_message='Server configuration error - API_KEY missing',
                     timestamp=datetime.now(timezone.utc),
-                    response_size=0
+                    response_size=0,
+                    ip_address=get_client_ip()
                 )
                 db.session.add(log)
                 db.session.commit()
@@ -832,7 +828,8 @@ def query_api():
                 response_code=500,
                 error_message=f'Unexpected error: {str(e)}',
                 timestamp=datetime.now(timezone.utc),
-                response_size=0
+                response_size=0,
+                ip_address=get_client_ip()
             )
             db.session.add(log)
             db.session.commit()
@@ -872,7 +869,8 @@ def refresh_data():
                     response_code=500,
                     error_message='Server configuration error - API_KEY missing',
                     timestamp=datetime.now(timezone.utc),
-                    response_size=0
+                    response_size=0,
+                    ip_address=get_client_ip()
                 )
                 db.session.add(log)
                 db.session.commit()
@@ -937,7 +935,8 @@ def refresh_data():
                         response_code=response.status_code,
                         error_message=None,
                         timestamp=datetime.now(timezone.utc),
-                        response_size=response_size
+                        response_size=response_size,
+                        ip_address=get_client_ip()
                     )
                     db.session.add(log)
                     db.session.commit()
@@ -961,7 +960,8 @@ def refresh_data():
                         response_code=response.status_code,
                         error_message=f'Refresh API returned {response.status_code}',
                         timestamp=datetime.now(timezone.utc),
-                        response_size=response_size
+                        response_size=response_size,
+                        ip_address=get_client_ip()
                     )
                     db.session.add(log)
                     db.session.commit()
@@ -983,7 +983,8 @@ def refresh_data():
                     response_code=408,
                     error_message='Refresh request timed out',
                     timestamp=datetime.now(timezone.utc),
-                    response_size=0
+                    response_size=0,
+                    ip_address=get_client_ip()
                 )
                 db.session.add(log)
                 db.session.commit()
@@ -1005,7 +1006,8 @@ def refresh_data():
                     response_code=500,
                     error_message=f'Refresh error: {str(e)}',
                     timestamp=datetime.now(timezone.utc),
-                    response_size=0
+                    response_size=0,
+                    ip_address=get_client_ip()
                 )
                 db.session.add(log)
                 db.session.commit()
@@ -1027,7 +1029,8 @@ def refresh_data():
                 response_code=500,
                 error_message=f'Unexpected refresh error: {str(e)}',
                 timestamp=datetime.now(timezone.utc),
-                response_size=0
+                response_size=0,
+                ip_address=get_client_ip()
             )
             db.session.add(log)
             db.session.commit()
