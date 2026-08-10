@@ -37,6 +37,9 @@ jobs:
             API_KEY=${{ secrets.API_KEY }}
             AUTHORIZED_IPS=${{ secrets.AUTHORIZED_IPS }}
             FLASK_ENV=production
+            STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
             EOF
             
             chmod 600 .env

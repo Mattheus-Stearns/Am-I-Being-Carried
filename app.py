@@ -15,6 +15,7 @@ import re
 import json
 import stripe
 from models import PlayerProfile, APICallLog, Feedback, Donation
+from flask_migrate import Migrate
 
 load_dotenv()
 
@@ -108,6 +109,7 @@ app.config["SESSION_SQLALCHEMY_TABLE"] = "sessions"  # Automatically creates thi
 
 db.init_app(app)
 Session(app)
+migrate = Migrate(app, db)
 
 # Create tables when the app starts
 with app.app_context():
@@ -1554,24 +1556,69 @@ def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
     
+    # Debug logging
+    print(f"Webhook received. Signature: {sig_header[:50]}...")
+    
+    if not sig_header:
+        print("Missing Stripe signature header")
+        return 'Missing signature', 400
+    
     try:
+        # Verify webhook signature
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
-    except ValueError:
+        print(f"Webhook verified: {event['type']}")
+        
+    except ValueError as e:
+        # Invalid payload
+        print(f"Invalid webhook payload: {e}")
         return 'Invalid payload', 400
-    except stripe.error.SignatureVerificationError:
+        
+    except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
+        print(f"Invalid webhook signature: {e}")
         return 'Invalid signature', 400
     
     # Handle the event
     if event['type'] == 'payment_intent.succeeded':
         payment_intent = event['data']['object']
+        print(f"Payment successful: {payment_intent['id']}")
+        
         # Update donation status
-        donation = Donation.query.filter_by(
-            stripe_payment_id=payment_intent['id']
-        ).first()
-        if donation:
-            donation.status = 'succeeded'
-            db.session.commit()
+        try:
+            donation = Donation.query.filter_by(
+                stripe_payment_id=payment_intent['id']
+            ).first()
+            
+            if donation:
+                donation.status = 'succeeded'
+                db.session.commit()
+                print(f"Donation {donation.id} marked as succeeded")
+            else:
+                print(f"Donation not found for payment: {payment_intent['id']}")
+                
+        except Exception as e:
+            print(f"Error updating donation: {e}")
+            db.session.rollback()
+    
+    elif event['type'] == 'payment_intent.payment_failed':
+        payment_intent = event['data']['object']
+        print(f"Payment failed: {payment_intent['id']}")
+        
+        # Update donation status
+        try:
+            donation = Donation.query.filter_by(
+                stripe_payment_id=payment_intent['id']
+            ).first()
+            
+            if donation:
+                donation.status = 'failed'
+                db.session.commit()
+                print(f"Donation {donation.id} marked as failed")
+                
+        except Exception as e:
+            print(f"Error updating donation: {e}")
+            db.session.rollback()
     
     return 'Success', 200
