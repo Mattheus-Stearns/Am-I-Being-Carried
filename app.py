@@ -1399,21 +1399,26 @@ def donation_success():
 def stripe_webhook():
     """Handle Stripe webhook events"""
     import traceback
+    import json
     
     try:
         # Get the raw payload
         payload = request.get_data(as_text=True)
-        sig_header = request.headers.get('Stripe-Signature', '')
+        sig_header = request.headers.get('Stripe-Signature')
         content_type = request.headers.get('Content-Type', '')
         
-        # Debug logging
+        # Debug logging - safely handle None values
         print("="*60)
         print("WEBHOOK RECEIVED")
         print("="*60)
         print(f"Content-Type: {content_type}")
         print(f"Signature present: {bool(sig_header)}")
+        if sig_header:
+            print(f"Signature: {sig_header[:50]}...")
+        else:
+            print("Signature: None")
         print(f"Payload length: {len(payload)}")
-        print(f"Payload preview: {payload[:200]}...")
+        print(f"Payload preview: {payload[:200] if payload else 'Empty'}...")
         
         # If no payload, return error
         if not payload:
@@ -1425,7 +1430,6 @@ def stripe_webhook():
         # ============================================
         if not sig_header:
             print("⚠️ Test webhook - no signature header")
-            print(f"Test data: {payload}")
             
             # Try to parse as JSON
             try:
@@ -1446,11 +1450,15 @@ def stripe_webhook():
                     return jsonify({
                         'status': 'success',
                         'message': 'Test payment intent received',
-                        'payment_intent_id': data.get('id')
+                        'payment_intent_id': data.get('id'),
+                        'test': True
                     }), 200
                     
             except json.JSONDecodeError:
                 print("Not valid JSON - test mode")
+                # Try to see if it's a Stripe webhook without signature
+                if 'payment_intent' in payload:
+                    print("Looks like a Stripe webhook but no signature")
             
             # Always return success for test webhooks
             return jsonify({'status': 'success', 'test': True}), 200
@@ -1481,7 +1489,7 @@ def stripe_webhook():
             
         except stripe.error.SignatureVerificationError as e:
             print(f"❌ Invalid webhook signature: {e}")
-            print(f"Signature header: {sig_header[:50]}...")
+            print(f"Signature header: {sig_header[:50] if sig_header else 'None'}...")
             return jsonify({'error': 'Invalid signature'}), 401
         
         # ============================================
