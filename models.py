@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from app import db
+from database import db
 
 class PlayerProfile(db.Model):
     __tablename__ = 'player_profiles'
