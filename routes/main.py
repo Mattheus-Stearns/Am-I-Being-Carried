@@ -374,16 +374,6 @@ def results():
         debug_items_found=len(items)
     )
 
-# Custom filter for date formatting
-@main_bp.template_filter('format_date')
-def format_date(date_string):
-    if not date_string:
-        return 'N/A'
-    try:
-        date_obj = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-        return date_obj.strftime('%Y-%m-%d %H:%M')
-    except:
-        return date_string[:16] if date_string else 'N/A'
 
 @main_bp.route('/support')
 def support():
