@@ -13,6 +13,28 @@ function showPreloader() {
     }
 }
 
+function validateUsername(username) {
+    if (!username || username.trim().length === 0) {
+        return { valid: false, message: 'Please enter a username.' };
+    }
+    
+    const trimmed = username.trim();
+    if (trimmed.length < 2) {
+        return { valid: false, message: 'Username must be at least 2 characters.' };
+    }
+    
+    if (trimmed.length > 100) {
+        return { valid: false, message: 'Username must be less than 100 characters.' };
+    }
+    
+    // Only allow alphanumeric, underscores, hyphens, dots, spaces
+    if (!/^[a-zA-Z0-9_.\- ]+$/.test(trimmed)) {
+        return { valid: false, message: 'Username contains invalid characters. Only letters, numbers, underscores, hyphens, dots, and spaces are allowed.' };
+    }
+    
+    return { valid: true };
+}
+
 function hidePreloader() {
     console.log('Hiding preloader');
     const preloader = document.getElementById('preloader');
@@ -111,6 +133,14 @@ function selectPlatform(button) {
 
 // 5. Main Submit Function
 async function submitApiForm(formId) {
+    const username = document.getElementById('username').value.trim();
+    
+    // Validate username
+    const validation = validateUsername(username);
+    if (!validation.valid) {
+        showError(validation.message);
+        return;
+    }
     console.log('Submitting form...');
     
     const form = document.getElementById(formId);

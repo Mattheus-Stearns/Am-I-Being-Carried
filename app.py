@@ -567,14 +567,155 @@ def query_api():
         print(f"Platform: {platform}")
         print(f"Username: {username}")
         print(f"Force Refresh: {force_refresh}")
-        print(f"Request data: {req_data}")
         
-        # DEBUG: Log current session state
-        print(f"Session before query: {dict(session)}")
+        # ============================================
+        # 1. INPUT VALIDATION - Prevent 422 errors
+        # ============================================
         
+        # Check missing fields
         if not platform or not username:
-            print("ERROR: Missing platform or username")
-            return jsonify({'success': False, 'message': 'Missing platform or username'})
+            error_msg = 'Missing platform or username'
+            print(f"ERROR: {error_msg}")
+            
+            # Log validation error
+            try:
+                log = APICallLog(
+                    platform=platform or 'unknown',
+                    username=username or 'unknown',
+                    success=False,
+                    response_code=400,
+                    error_message=error_msg,
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=0,
+                    ip_address=get_client_ip()
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log validation error: {log_error}")
+            
+            return jsonify({
+                'success': False, 
+                'message': error_msg,
+                'error_code': 'MISSING_FIELDS'
+            }), 400
+        
+        # Validate platform
+        valid_platforms = ['epic', 'steam', 'psn', 'xbox', 'switch']
+        if platform not in valid_platforms:
+            error_msg = f"Invalid platform: '{platform}'. Must be one of: {', '.join(valid_platforms)}"
+            print(f"ERROR: {error_msg}")
+            
+            # Log validation error
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=400,
+                    error_message=error_msg,
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=0,
+                    ip_address=get_client_ip()
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log validation error: {log_error}")
+            
+            return jsonify({
+                'success': False,
+                'message': error_msg,
+                'error_code': 'INVALID_PLATFORM',
+                'valid_platforms': valid_platforms
+            }), 400
+        
+        # Validate username format
+        if len(username) < 2:
+            error_msg = 'Username must be at least 2 characters long'
+            print(f"ERROR: {error_msg}")
+            
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=400,
+                    error_message=error_msg,
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=0,
+                    ip_address=get_client_ip()
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log validation error: {log_error}")
+            
+            return jsonify({
+                'success': False,
+                'message': error_msg,
+                'error_code': 'USERNAME_TOO_SHORT'
+            }), 400
+        
+        if len(username) > 100:
+            error_msg = 'Username must be less than 100 characters'
+            print(f"ERROR: {error_msg}")
+            
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=400,
+                    error_message=error_msg,
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=0,
+                    ip_address=get_client_ip()
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log validation error: {log_error}")
+            
+            return jsonify({
+                'success': False,
+                'message': error_msg,
+                'error_code': 'USERNAME_TOO_LONG'
+            }), 400
+        
+        # Validate username characters (no special characters that might break API)
+        import re
+        if not re.match(r'^[a-zA-Z0-9_.\- ]+$', username):
+            error_msg = 'Username contains invalid characters. Only letters, numbers, underscores, hyphens, dots, and spaces are allowed.'
+            print(f"ERROR: {error_msg}")
+            
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=400,
+                    error_message=error_msg,
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=0,
+                    ip_address=get_client_ip()
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log validation error: {log_error}")
+            
+            return jsonify({
+                'success': False,
+                'message': error_msg,
+                'error_code': 'INVALID_USERNAME_CHARS'
+            }), 400
+        
+        # ============================================
+        # 2. SESSION CACHE CHECK
+        # ============================================
+        
+        print(f"Session before query: {dict(session)}")
         
         # Check if we have data in session first (faster than DB query)
         session_data = session.get('api_data')
@@ -618,7 +759,10 @@ def query_api():
                 'cached_at': session.get('last_updated')
             })
         
-        # Check database for cached data
+        # ============================================
+        # 3. DATABASE CACHE CHECK
+        # ============================================
+        
         print("Checking database for cached data...")
         existing_profile = PlayerProfile.query.filter_by(
             platform=platform,
@@ -681,7 +825,10 @@ def query_api():
                     'cached_at': existing_profile.updated_at.isoformat()
                 })
         
-        # If we get here, we need to make a fresh API call
+        # ============================================
+        # 4. FRESH API CALL WITH RETRY LOGIC
+        # ============================================
+        
         print("Making FRESH API call...")
         app.logger.info(f"Making fresh API call for {platform}:{username}")
         
@@ -708,29 +855,132 @@ def query_api():
             except Exception as log_error:
                 print(f"Failed to log API key error: {log_error}")
             
-            return jsonify({'success': False, 'message': 'Server configuration error'})
+            return jsonify({'success': False, 'message': 'Server configuration error'}), 500
         
-        print("Making API request...")
-        response = requests.get(
-            "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions",
-            headers={
-                "X-API-Key": api_key,
-                "API-Snapshot-Version": "6"
-            },
-            params={
-                "platform": platform,
-                "username": username
-            },
-            timeout=30
-        )
+        # URL encode username for API request
+        import urllib.parse
+        encoded_username = urllib.parse.quote(username)
         
-        print(f"API Response Status: {response.status_code}")
+        # Retry logic for transient errors (429, 502, 503, 504)
+        max_retries = 3
+        retry_delays = [1, 2, 5]  # Increasing delays
+        response = None
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                print(f"API request attempt {attempt + 1}/{max_retries}")
+                
+                response = requests.get(
+                    "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions",
+                    headers={
+                        "X-API-Key": api_key,
+                        "API-Snapshot-Version": "6",
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    params={
+                        "platform": platform,
+                        "username": encoded_username
+                    },
+                    timeout=30
+                )
+                
+                print(f"API Response Status: {response.status_code}")
+                
+                # If successful or client error (422, 404), don't retry
+                if response.status_code == 200:
+                    break
+                elif response.status_code in [400, 404, 422]:
+                    # Client errors - don't retry
+                    break
+                elif response.status_code in [429, 502, 503, 504]:
+                    # Rate limited or server errors - retry
+                    if attempt < max_retries - 1:
+                        delay = retry_delays[attempt]
+                        print(f"Status {response.status_code}. Retrying in {delay} seconds...")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        break
+                else:
+                    # Other status codes
+                    break
+                    
+            except requests.exceptions.Timeout:
+                print(f"Request timeout (attempt {attempt + 1}/{max_retries})")
+                last_error = "Request timeout"
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delays[attempt])
+                    continue
+                else:
+                    response = None
+                    break
+                    
+            except requests.exceptions.ConnectionError:
+                print(f"Connection error (attempt {attempt + 1}/{max_retries})")
+                last_error = "Connection error"
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delays[attempt])
+                    continue
+                else:
+                    response = None
+                    break
+                    
+            except Exception as e:
+                print(f"Request error: {e}")
+                last_error = str(e)
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delays[attempt])
+                    continue
+                else:
+                    response = None
+                    break
+        
+        # ============================================
+        # 5. HANDLE API RESPONSE
+        # ============================================
+        
+        # If no response after retries
+        if response is None:
+            error_msg = last_error or 'API request failed after retries'
+            print(f"API call FAILED: {error_msg}")
+            
+            # LOG FAILED API CALL
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=500,
+                    error_message=error_msg,
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=0,
+                    ip_address=get_client_ip()
+                )
+                db.session.add(log)
+                db.session.commit()
+                print(f"Logged failed API call for {platform}/{username}")
+            except Exception as log_error:
+                print(f"Failed to log API call: {log_error}")
+                db.session.rollback()
+            
+            return jsonify({
+                'success': False,
+                'message': f'API request failed: {error_msg}',
+                'error_code': 'API_REQUEST_FAILED'
+            }), 500
         
         response_size = len(response.content) if response.content else 0
         
         if response.status_code == 200:
             print("API call SUCCESSFUL")
             data = response.json()
+            
+            # Check if data contains valid session data
+            if not data.get('items'):
+                print("WARNING: API returned success but no items found")
+                # This is a valid response but no data for this user
             
             # Save to database
             if existing_profile:
@@ -773,7 +1023,8 @@ def query_api():
                     response_code=response.status_code,
                     error_message=None,
                     timestamp=datetime.now(timezone.utc),
-                    response_size=response_size
+                    response_size=response_size,
+                    ip_address=get_client_ip()
                 )
                 db.session.add(log)
                 db.session.commit()
@@ -789,8 +1040,12 @@ def query_api():
                 'message': f'Successfully fetched fresh data for {username} on {platform}',
                 'from_cache': False
             })
-        else:
-            print(f"API call FAILED with status {response.status_code}")
+        
+        elif response.status_code == 422:
+            # Invalid request - user error
+            error_msg = f'Invalid username or platform. Please check your input.'
+            print(f"API call FAILED: {error_msg}")
+            
             # LOG FAILED API CALL
             try:
                 log = APICallLog(
@@ -798,21 +1053,116 @@ def query_api():
                     username=username,
                     success=False,
                     response_code=response.status_code,
-                    error_message=f'API returned status {response.status_code}',
+                    error_message=f'API returned 422: {response.text[:200]}',
                     timestamp=datetime.now(timezone.utc),
-                    response_size=response_size
+                    response_size=response_size,
+                    ip_address=get_client_ip()
                 )
                 db.session.add(log)
                 db.session.commit()
-                print(f"Logged failed API call for {platform}/{username}")
             except Exception as log_error:
                 print(f"Failed to log API call: {log_error}")
                 db.session.rollback()
             
             return jsonify({
                 'success': False,
-                'message': f'API Error: {response.status_code}'
-            })
+                'message': error_msg,
+                'error_code': 'INVALID_USERNAME',
+                'platform': platform,
+                'username': username,
+                'suggestion': 'Check if the username is correct and try again'
+            }), 404
+        
+        elif response.status_code == 429:
+            # Rate limited
+            retry_after = int(response.headers.get('Retry-After', 60))
+            error_msg = f'API rate limit exceeded. Please wait {retry_after} seconds.'
+            print(f"API call FAILED: {error_msg}")
+            
+            # LOG FAILED API CALL
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=response.status_code,
+                    error_message=f'Rate limited. Retry-After: {retry_after}s',
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=response_size,
+                    ip_address=get_client_ip()
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log API call: {log_error}")
+                db.session.rollback()
+            
+            return jsonify({
+                'success': False,
+                'message': error_msg,
+                'error_code': 'RATE_LIMITED',
+                'retry_after': retry_after
+            }), 429
+        
+        elif response.status_code in [502, 503, 504]:
+            # Server errors
+            error_msg = f'The API service is temporarily unavailable. Please try again later.'
+            print(f"API call FAILED: {error_msg}")
+            
+            # LOG FAILED API CALL
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=response.status_code,
+                    error_message=f'API server error: {response.status_code}',
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=response_size,
+                    ip_address=get_client_ip()
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log API call: {log_error}")
+                db.session.rollback()
+            
+            return jsonify({
+                'success': False,
+                'message': error_msg,
+                'error_code': 'API_SERVER_ERROR',
+                'status_code': response.status_code
+            }), response.status_code
+        
+        else:
+            # Unknown error
+            error_msg = f'API error: {response.status_code}'
+            print(f"API call FAILED: {error_msg}")
+            
+            # LOG FAILED API CALL
+            try:
+                log = APICallLog(
+                    platform=platform,
+                    username=username,
+                    success=False,
+                    response_code=response.status_code,
+                    error_message=f'API returned {response.status_code}: {response.text[:200]}',
+                    timestamp=datetime.now(timezone.utc),
+                    response_size=response_size,
+                    ip_address=get_client_ip()
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as log_error:
+                print(f"Failed to log API call: {log_error}")
+                db.session.rollback()
+            
+            return jsonify({
+                'success': False,
+                'message': error_msg,
+                'error_code': 'API_UNKNOWN_ERROR',
+                'status_code': response.status_code
+            }), response.status_code
             
     except Exception as e:
         print(f"EXCEPTION in query_api: {type(e).__name__}: {str(e)}")
@@ -839,7 +1189,11 @@ def query_api():
             db.session.rollback()
         
         app.logger.error(f"Error in query_api: {str(e)}", exc_info=True)
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({
+            'success': False, 
+            'message': 'An unexpected error occurred. Please try again.',
+            'error_code': 'INTERNAL_ERROR'
+        }), 500
 
 @app.route('/api/refresh', methods=['POST'])
 def refresh_data():
