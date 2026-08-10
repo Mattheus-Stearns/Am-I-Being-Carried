@@ -17,6 +17,7 @@ from models import PlayerProfile, APICallLog, Feedback, Donation
 from flask_migrate import Migrate
 from database import db
 from helper import calculate_carried_score
+import hashlib
 
 load_dotenv()
 
@@ -30,15 +31,33 @@ stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 
-# Redis connection
-redis_client = redis.Redis(
-    host=os.getenv('REDIS_HOST', 'localhost'),
-    port=int(os.getenv('REDIS_PORT', 6379)),
-    db=int(os.getenv('REDIS_DB', 0)),
-    decode_responses=True
-)
+# ============================================
+# REDIS CONNECTION
+# ============================================
+
+# Redis connection with error handling
+try:
+    redis_client = redis.Redis(
+        host=os.getenv('REDIS_HOST', 'localhost'),
+        port=int(os.getenv('REDIS_PORT', 6379)),
+        db=int(os.getenv('REDIS_DB', 0)),
+        decode_responses=True,
+        socket_connect_timeout=5,
+        socket_timeout=5
+    )
+    # Test connection
+    redis_client.ping()
+    print("Redis connected successfully")
+except Exception as e:
+    print(f"Redis connection failed: {e}")
+    print("   Rate limiting will use memory storage as fallback")
+    redis_client = None
 
 WHITELIST_KEY = 'authorized_ips'
+
+# ============================================
+# AUTHORIZED IPS FUNCTIONS
+# ============================================
 
 def load_authorized_ips():
     """Load authorized IPs from .env into Redis"""
@@ -46,24 +65,38 @@ def load_authorized_ips():
     ips_string = os.getenv('AUTHORIZED_IPS', '')
     ips = [ip.strip() for ip in ips_string.split(',') if ip.strip()]
     
-    # Clear existing
-    redis_client.delete(WHITELIST_KEY)
+    if not redis_client:
+        print("Redis not available. Cannot load authorized IPs.")
+        return ips
     
-    # Add IPs to Redis
-    if ips:
-        redis_client.sadd(WHITELIST_KEY, *ips)
-        print(f" Loaded {len(ips)} authorized IPs from .env")
-        print(f"   IPs: {ips}")
-    else:
-        print(" No authorized IPs found in .env")
+    try:
+        # Clear existing
+        redis_client.delete(WHITELIST_KEY)
+        
+        # Add IPs to Redis
+        if ips:
+            redis_client.sadd(WHITELIST_KEY, *ips)
+            print(f"Loaded {len(ips)} authorized IPs from .env")
+            print(f"   IPs: {ips}")
+        else:
+            print("No authorized IPs found in .env")
+    except Exception as e:
+        print(f"Failed to load authorized IPs: {e}")
     
     return ips
 
 def is_ip_authorized(ip):
     """Check if IP is authorized"""
-    if not ip:
+    if not ip or not redis_client:
         return False
-    return redis_client.sismember(WHITELIST_KEY, ip)
+    try:
+        return redis_client.sismember(WHITELIST_KEY, ip)
+    except Exception:
+        return False
+
+# ============================================
+# CLIENT IP FUNCTIONS
+# ============================================
 
 def get_client_ip():
     """Get client IP address from request"""
@@ -76,27 +109,91 @@ def get_client_ip():
     else:
         return request.remote_addr
 
-# Initialize rate limiter with Redis
+# ============================================
+# RATE LIMITING KEY FUNCTIONS
+# ============================================
+
+def hybrid_rate_limit_key():
+    """
+    Combine session ID and IP address for rate limiting.
+    Falls back to IP if session doesn't exist.
+    """
+    # Try to get session ID first
+    session_id = session.get('user_id') or session.get('sid')
+    
+    if session_id:
+        # Use session ID as primary key
+        return f"session_{session_id}"
+    
+    # Fallback to IP address
+    return f"ip_{get_remote_address()}"
+
+def hybrid_key_func():
+    """
+    Combine session ID and IP for rate limiting.
+    Also includes a timestamp component for daily limits.
+    """
+    # Get IP address
+    ip = get_remote_address()
+    
+    # Get session ID (if it exists)
+    session_id = session.get('user_id') or session.get('sid')
+    
+    if session_id:
+        # Hash the combination for consistent keys
+        key_string = f"{session_id}:{ip}"
+        hashed_key = hashlib.sha256(key_string.encode()).hexdigest()[:16]
+        return f"hybrid_{hashed_key}"
+    
+    # Fallback to IP only
+    return f"ip_{ip}"
+
+# ============================================
+# RATE LIMITER INITIALIZATION
+# ============================================
+
+# Determine storage URI
+if redis_client:
+    storage_uri = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/{os.getenv('REDIS_DB', 0)}"
+else:
+    storage_uri = "memory://"
+
+# Initialize rate limiter
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=hybrid_key_func,
     app=app,
-    storage_uri="redis://localhost:6379/0",
+    storage_uri=storage_uri,
     default_limits=["100 per day", "20 per hour"],
 )
+
+# ============================================
+# IP AUTHORIZATION FILTER
+# ============================================
 
 # Exempt authorized IPs from rate limiting
 @limiter.request_filter
 def ip_authorized_filter():
-    client_ip = get_client_ip()
-    return is_ip_authorized(client_ip)
+    """Check if the current request is from an authorized IP"""
+    try:
+        client_ip = get_client_ip()
+        return is_ip_authorized(client_ip)
+    except Exception:
+        return False
 
-# Error handler for rate limit
+# ============================================
+# RATE LIMIT ERROR HANDLER
+# ============================================
+
 @app.errorhandler(429)
 def ratelimit_handler(e):
+    """Handle rate limit exceeded errors"""
+    retry_after = getattr(e, 'description', 300)  # Default to 5 minutes
+    
     return jsonify({
         'success': False,
-        'message': 'Rate limit exceeded. Please wait 5 minutes before making another request.',
-        'retry_after': 300  # 5 minutes in seconds
+        'message': f'Rate limit exceeded. Please wait {retry_after} seconds.',
+        'error_code': 'RATE_LIMIT_EXCEEDED',
+        'retry_after': retry_after
     }), 429
 
 # Initialize and connect your server-side session databasex
