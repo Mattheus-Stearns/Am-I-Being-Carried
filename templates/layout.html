@@ -32,7 +32,7 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <i class="fas fa-database"></i> Am I Being Carried?
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -41,7 +41,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">
+                        <a class="nav-link" href="{{ url_for('main.index') }}">
                             <i class="fas fa-home"></i> Home
                         </a>
                     </li>
@@ -51,13 +51,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('donate') }}" class="btn btn-warning btn-sm">
+                        <a href="{{ url_for('main.donate') }}" class="btn btn-warning btn-sm">
                             <i class="fas fa-heart"></i> Support
                         </a>
                     </li>
                     {% if session.get('data_fetched') %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('results') }}">
+                        <a class="nav-link" href="{{ url_for('main.results') }}">
                             <i class="fas fa-chart-bar"></i> Results
                         </a>
                     </li>
@@ -138,7 +138,7 @@
                         <button type="submit" class="btn btn-primary btn-sm mt-2">
                             <i class="fas fa-paper-plane"></i> Send Feedback
                         </button>
-                        <a href="{{ url_for('donate') }}" class="btn btn-warning btn-sm">
+                        <a href="{{ url_for('main.donate') }}" class="btn btn-warning btn-sm">
                             <i class="fas fa-heart"></i> Support
                         </a>
                         <div id="feedbackStatus" class="mt-2"></div>
