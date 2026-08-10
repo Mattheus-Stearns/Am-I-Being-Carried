@@ -5,7 +5,8 @@ from models import PlayerProfile, APICallLog, Feedback
 from extensions import db, limiter
 from services.api_service import fetch_player_data
 from services.cache_service import get_cached_data, save_cached_data
-from utils.helpers import get_client_ip, log_api_call
+from utils.helpers import get_client_ip
+from services.cache_service import log_api_call
 from utils.validators import validate_platform, validate_username
 from datetime import datetime, timezone
 import json
