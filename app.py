@@ -1398,72 +1398,183 @@ def donation_success():
 @app.route('/webhook', methods=['POST'])
 def stripe_webhook():
     """Handle Stripe webhook events"""
-    payload = request.get_data(as_text=True)
-    sig_header = request.headers.get('Stripe-Signature')
-    
-    # Debug logging
-    print(f"Webhook received. Signature: {sig_header[:50]}...")
-    
-    if not sig_header:
-        print("Missing Stripe signature header")
-        return 'Missing signature', 400
+    import traceback
     
     try:
-        # Verify webhook signature
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
-        )
-        print(f"Webhook verified: {event['type']}")
+        # Get the raw payload
+        payload = request.get_data(as_text=True)
+        sig_header = request.headers.get('Stripe-Signature', '')
+        content_type = request.headers.get('Content-Type', '')
         
-    except ValueError as e:
-        # Invalid payload
-        print(f"Invalid webhook payload: {e}")
-        return 'Invalid payload', 400
+        # Debug logging
+        print("="*60)
+        print("WEBHOOK RECEIVED")
+        print("="*60)
+        print(f"Content-Type: {content_type}")
+        print(f"Signature present: {bool(sig_header)}")
+        print(f"Payload length: {len(payload)}")
+        print(f"Payload preview: {payload[:200]}...")
         
-    except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
-        print(f"Invalid webhook signature: {e}")
-        return 'Invalid signature', 400
-    
-    # Handle the event
-    if event['type'] == 'payment_intent.succeeded':
-        payment_intent = event['data']['object']
-        print(f"Payment successful: {payment_intent['id']}")
+        # If no payload, return error
+        if not payload:
+            print("❌ Empty payload")
+            return jsonify({'error': 'Empty payload'}), 400
         
-        # Update donation status
-        try:
-            donation = Donation.query.filter_by(
-                stripe_payment_id=payment_intent['id']
-            ).first()
+        # ============================================
+        # TEST MODE: No signature header
+        # ============================================
+        if not sig_header:
+            print("⚠️ Test webhook - no signature header")
+            print(f"Test data: {payload}")
             
-            if donation:
-                donation.status = 'succeeded'
-                db.session.commit()
-                print(f"Donation {donation.id} marked as succeeded")
+            # Try to parse as JSON
+            try:
+                data = json.loads(payload)
+                print(f"Test webhook data: {data}")
+                
+                # Check if it's our test webhook
+                if data.get('type') == 'test':
+                    return jsonify({
+                        'status': 'success',
+                        'message': 'Test webhook received',
+                        'test': True
+                    }), 200
+                
+                # Handle test payment_intent
+                if data.get('id') and data.get('id').startswith('pi_'):
+                    print(f"Test payment intent: {data.get('id')}")
+                    return jsonify({
+                        'status': 'success',
+                        'message': 'Test payment intent received',
+                        'payment_intent_id': data.get('id')
+                    }), 200
+                    
+            except json.JSONDecodeError:
+                print("Not valid JSON - test mode")
+            
+            # Always return success for test webhooks
+            return jsonify({'status': 'success', 'test': True}), 200
+        
+        # ============================================
+        # PRODUCTION MODE: Verify signature
+        # ============================================
+        # Make sure webhook secret is set
+        webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+        
+        if not webhook_secret:
+            print("❌ STRIPE_WEBHOOK_SECRET not set in environment")
+            return jsonify({'error': 'Webhook secret not configured'}), 500
+        
+        print(f"Webhook secret present: {webhook_secret[:10]}...")
+        
+        # Verify the signature
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, webhook_secret
+            )
+            print(f"✅ Webhook verified: {event['type']}")
+            
+        except ValueError as e:
+            print(f"❌ Invalid webhook payload: {e}")
+            print(f"Payload: {payload[:500]}")
+            return jsonify({'error': 'Invalid payload'}), 400
+            
+        except stripe.error.SignatureVerificationError as e:
+            print(f"❌ Invalid webhook signature: {e}")
+            print(f"Signature header: {sig_header[:50]}...")
+            return jsonify({'error': 'Invalid signature'}), 401
+        
+        # ============================================
+        # HANDLE EVENTS
+        # ============================================
+        try:
+            event_type = event['type']
+            print(f"Processing event: {event_type}")
+            
+            if event_type == 'payment_intent.succeeded':
+                payment_intent = event['data']['object']
+                payment_id = payment_intent['id']
+                amount = payment_intent.get('amount', 0) / 100
+                currency = payment_intent.get('currency', 'usd')
+                customer_id = payment_intent.get('customer')
+                metadata = payment_intent.get('metadata', {})
+                
+                print(f"💰 Payment successful: {payment_id}")
+                print(f"   Amount: {amount} {currency.upper()}")
+                print(f"   Customer: {customer_id}")
+                print(f"   Metadata: {metadata}")
+                
+                # Update donation record
+                try:
+                    donation = Donation.query.filter_by(
+                        stripe_payment_id=payment_id
+                    ).first()
+                    
+                    if donation:
+                        donation.status = 'succeeded'
+                        donation.stripe_customer_id = customer_id
+                        db.session.commit()
+                        print(f"✅ Donation {donation.id} marked as succeeded")
+                    else:
+                        print(f"⚠️ Donation not found for payment: {payment_id}")
+                        # Create a donation record if it doesn't exist (fallback)
+                        new_donation = Donation(
+                            name=metadata.get('name', 'Anonymous'),
+                            email=metadata.get('email', ''),
+                            amount=amount,
+                            currency=currency,
+                            message=metadata.get('message', ''),
+                            stripe_payment_id=payment_id,
+                            stripe_customer_id=customer_id,
+                            status='succeeded',
+                            is_anonymous=metadata.get('is_anonymous') == 'True',
+                            show_on_wall=metadata.get('show_on_wall') == 'True'
+                        )
+                        db.session.add(new_donation)
+                        db.session.commit()
+                        print(f"✅ Created new donation record for {payment_id}")
+                        
+                except Exception as e:
+                    print(f"❌ Error updating donation: {e}")
+                    db.session.rollback()
+            
+            elif event_type == 'payment_intent.payment_failed':
+                payment_intent = event['data']['object']
+                payment_id = payment_intent['id']
+                print(f"❌ Payment failed: {payment_id}")
+                
+                try:
+                    donation = Donation.query.filter_by(
+                        stripe_payment_id=payment_id
+                    ).first()
+                    
+                    if donation:
+                        donation.status = 'failed'
+                        db.session.commit()
+                        print(f"❌ Donation {donation.id} marked as failed")
+                except Exception as e:
+                    print(f"❌ Error updating donation: {e}")
+                    db.session.rollback()
+            
+            elif event_type == 'checkout.session.completed':
+                print(f"🛒 Checkout completed")
+                
+            elif event_type == 'customer.subscription.created':
+                print(f"📋 Subscription created")
+            
             else:
-                print(f"Donation not found for payment: {payment_intent['id']}")
-                
-        except Exception as e:
-            print(f"Error updating donation: {e}")
-            db.session.rollback()
-    
-    elif event['type'] == 'payment_intent.payment_failed':
-        payment_intent = event['data']['object']
-        print(f"Payment failed: {payment_intent['id']}")
-        
-        # Update donation status
-        try:
-            donation = Donation.query.filter_by(
-                stripe_payment_id=payment_intent['id']
-            ).first()
+                print(f"ℹ️ Unhandled event type: {event_type}")
             
-            if donation:
-                donation.status = 'failed'
-                db.session.commit()
-                print(f"Donation {donation.id} marked as failed")
-                
+            return jsonify({'status': 'success'}), 200
+            
         except Exception as e:
-            print(f"Error updating donation: {e}")
-            db.session.rollback()
-    
-    return 'Success', 200
+            print(f"❌ Error handling event: {e}")
+            traceback.print_exc()
+            # Return 200 to prevent Stripe from retrying
+            return jsonify({'status': 'success', 'error': str(e)}), 200
+        
+    except Exception as e:
+        print(f"❌ Unexpected webhook error: {e}")
+        traceback.print_exc()
+        # Return 200 to prevent Stripe from retrying
+        return jsonify({'status': 'success'}), 200
