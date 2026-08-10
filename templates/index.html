@@ -10,7 +10,7 @@
                 <h4><i class="fas fa-search"></i> Search through your recent games</h4>
             </div>
             <div class="card-body">
-                <form id="apiForm" onsubmit="event.preventDefault(); submitApiForm('apiForm')" autocomplete="off">
+                <form id="apiForm" action="{{ url_for('api.query_api') }}" method="POST" autocapitalize="OFF">
                     <input type="text" style="display:none">
                     <input type="password" style="display:none">
 
