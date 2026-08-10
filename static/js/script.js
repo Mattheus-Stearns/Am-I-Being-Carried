@@ -2,8 +2,6 @@
 // ALL FUNCTIONS DEFINED AT THE TOP LEVEL
 // ============================================
 
-const stripe = Stripe('{{ stripe_publishable_key }}');
-
 // 1. Helper Functions (defined first)
 function showPreloader() {
     console.log('Showing preloader');
@@ -69,19 +67,19 @@ function hideError() {
 
 function showDonationStatus(message, type = 'info') {
     const status = document.getElementById('donationStatus');
-    status.innerHTML = `<div class="alert alert-${type} alert-sm mb-0">${message}</div>`;
-    setTimeout(() => status.innerHTML = '', 10000);
+    if (status) {
+        status.innerHTML = `<div class="alert alert-${type} alert-sm mb-0">${message}</div>`;
+        setTimeout(() => status.innerHTML = '', 10000);
+    }
 }
 
 // 2. Toast Notification Function
 function showToast(message, type = 'success') {
-    // Remove existing toast
     const existingToast = document.querySelector('.custom-toast');
     if (existingToast) {
         existingToast.remove();
     }
     
-    // Create toast
     const toast = document.createElement('div');
     toast.className = `custom-toast alert alert-${type} position-fixed bottom-0 end-0 m-3`;
     toast.style.zIndex = '9999';
@@ -90,7 +88,6 @@ function showToast(message, type = 'success') {
     toast.innerHTML = message;
     document.body.appendChild(toast);
     
-    // Auto remove after 5 seconds
     setTimeout(() => {
         toast.remove();
     }, 5000);
@@ -116,20 +113,15 @@ function timeSince(date) {
 function selectPlatform(button) {
     console.log('Button clicked:', button);
     
-    // Get all platform buttons
     const allButtons = document.querySelectorAll('.platform-btn');
-    
-    // Remove 'active' class from all buttons
     allButtons.forEach(btn => {
         btn.classList.remove('active', 'btn-primary');
         btn.classList.add('btn-outline-primary');
     });
     
-    // Activate the clicked button
     button.classList.remove('btn-outline-primary');
     button.classList.add('active', 'btn-primary');
     
-    // Store the selected platform ID
     const platformId = button.dataset.platform;
     const selectedPlatformInput = document.getElementById('selectedPlatform');
     if (selectedPlatformInput) {
@@ -141,20 +133,29 @@ function selectPlatform(button) {
 
 // 5. Main Submit Function
 async function submitApiForm(formId) {
-    const username = document.getElementById('username').value.trim();
-    
-    // Validate username
-    const validation = validateUsername(username);
-    if (!validation.valid) {
-        showError(validation.message);
-        return;
-    }
-    console.log('Submitting form...');
+    console.log('submitApiForm called');
     
     const form = document.getElementById(formId);
     if (!form) {
         console.error('Form not found!');
         showError('Form not found');
+        return;
+    }
+    
+    // Get username
+    const usernameInput = document.getElementById('username');
+    if (!usernameInput) {
+        console.error('Username field not found!');
+        showError('Username field not found');
+        return;
+    }
+    
+    const username = usernameInput.value.trim();
+    
+    // Validate username
+    const validation = validateUsername(username);
+    if (!validation.valid) {
+        showError(validation.message);
         return;
     }
     
@@ -166,32 +167,23 @@ async function submitApiForm(formId) {
         showError('Please select a platform first!');
         const statusEl = document.getElementById('platformStatus');
         if (statusEl) {
-            statusEl.textContent = 'Please select a platform!';
+            statusEl.textContent = '⚠️ Please select a platform!';
             statusEl.style.color = 'red';
         }
         return;
     }
     
-    // Get username
-    const username = document.getElementById('username').value.trim();
-    console.log('Username:', username);
-    
-    if (!username) {
-        showError('Please enter a username.');
-        return;
-    }
-    
+    console.log('Submitting form for:', platformId, username);
     showPreloader();
     
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
-    
     data.force_refresh = true;
     console.log('Form data with force_refresh:', data);
     
     try {
         // First, clear the session to force a fresh request
-        console.log(' Clearing session...');
+        console.log('Clearing session...');
         await fetch('/api/clear_session', {
             method: 'POST',
             headers: {
@@ -201,7 +193,7 @@ async function submitApiForm(formId) {
         console.log('Session cleared');
         
         // Then make the API query
-        console.log('Making API query...');
+        console.log('Making API query to /api/query...');
         const response = await fetch('/api/query', {
             method: 'POST',
             headers: {
@@ -235,7 +227,6 @@ async function submitApiForm(formId) {
 // 6. Share Result Function
 async function shareResult() {
     try {
-        // Show loading state
         const shareBtn = document.querySelector('.share-btn');
         if (!shareBtn) {
             console.error('Share button not found');
@@ -246,29 +237,25 @@ async function shareResult() {
         shareBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
         shareBtn.disabled = true;
         
-        // Get the card element
         const card = document.getElementById('carried-score-card');
         if (!card) {
             console.error('Card not found');
-            showToast(' Card not found to share.', 'danger');
+            showToast('Card not found to share.', 'danger');
             shareBtn.innerHTML = originalText;
             shareBtn.disabled = false;
             return;
         }
         
-        // Check if html2canvas is loaded
         if (typeof html2canvas === 'undefined') {
             console.error('html2canvas not loaded');
-            showToast(' Share library not loaded. Please refresh and try again.', 'danger');
+            showToast('Share library not loaded. Please refresh and try again.', 'danger');
             shareBtn.innerHTML = originalText;
             shareBtn.disabled = false;
             return;
         }
         
-        // Get the site URL for the watermark/link
         const siteUrl = window.location.origin;
         
-        // Generate image with watermark
         const canvas = await html2canvas(card, {
             scale: 2,
             backgroundColor: '#ffffff',
@@ -282,7 +269,6 @@ async function shareResult() {
             }
         });
         
-        // Add watermark/text to the image
         const ctx = canvas.getContext('2d');
         const footerHeight = 40;
         const gradient = ctx.createLinearGradient(0, canvas.height - footerHeight, 0, canvas.height);
@@ -298,28 +284,20 @@ async function shareResult() {
         ctx.textBaseline = 'middle';
         ctx.fillText(`Check your score at ${siteUrl}`, canvas.width / 2, canvas.height - (footerHeight / 2));
         
-        // Convert to image URL
         const imageUrl = canvas.toDataURL('image/png');
         
-        // Get score text
         const scoreElement = document.querySelector('[style*="font-size: 4rem;"]');
         const scoreText = scoreElement?.textContent?.trim() || '??';
-        
-        // Create share text with link
         const shareText = `I got a ${scoreText} Carried Score! Check yours at ${siteUrl}`;
         
-        // --- MODIFIED: Better handling for macOS ---
         let shareSuccessful = false;
         
-        // Check if Web Share API is available
         if (navigator.share) {
             try {
-                // Convert image to blob
                 const response = await fetch(imageUrl);
                 const blob = await response.blob();
                 const file = new File([blob], 'carried-score.png', { type: 'image/png' });
                 
-                // Share with file
                 await navigator.share({
                     title: 'Am I Being Carried?',
                     text: shareText,
@@ -328,61 +306,51 @@ async function shareResult() {
                 });
                 
                 shareSuccessful = true;
-                showToast(' Shared successfully!', 'success');
+                showToast('Shared successfully!', 'success');
                 
             } catch (shareError) {
                 console.log('Share cancelled or failed:', shareError);
                 
-                // If user cancelled or share failed, try text-only share
                 if (shareError.name !== 'AbortError' && shareError.name !== 'CancelError') {
                     try {
-                        // Try text-only share as fallback
                         await navigator.share({
                             title: 'Am I Being Carried?',
                             text: shareText,
                             url: siteUrl
                         });
                         shareSuccessful = true;
-                        showToast(' Shared successfully!', 'success');
+                        showToast('Shared successfully!', 'success');
                     } catch (textError) {
                         console.log('Text share failed:', textError);
-                        // Fall through to desktop fallback
                     }
                 } else {
-                    // User cancelled - show a friendly message
-                    showToast(' Share cancelled. Link copied to clipboard instead.', 'info');
-                    // Still copy to clipboard
+                    showToast('Share cancelled. Link copied to clipboard instead.', 'info');
                     await navigator.clipboard.writeText(shareText);
                     shareSuccessful = true;
                 }
             }
         }
         
-        // If share wasn't successful (or not available), use desktop fallback
         if (!shareSuccessful) {
-            // For desktop: just download the image and copy link
             const link = document.createElement('a');
             link.download = 'carried-score.png';
             link.href = imageUrl;
             link.click();
             
-            // Copy text to clipboard
             try {
                 await navigator.clipboard.writeText(shareText);
-                showToast(' Image downloaded! Link copied to clipboard.', 'success');
+                showToast('Image downloaded! Link copied to clipboard.', 'success');
             } catch (clipError) {
-                // If clipboard fails, show manual copy
-                showToast(' Image downloaded! Copy this link: ' + shareText, 'info');
+                showToast('Image downloaded! Copy this link: ' + shareText, 'info');
             }
         }
         
-        // Reset button
         shareBtn.innerHTML = originalText;
         shareBtn.disabled = false;
         
     } catch (error) {
         console.error('Share error:', error);
-        showToast(' Failed to share. Please try again.', 'danger');
+        showToast('Failed to share. Please try again.', 'danger');
         
         const shareBtn = document.querySelector('.share-btn');
         if (shareBtn) {
@@ -405,16 +373,14 @@ async function copyShareLink() {
         const scoreElement = document.querySelector('[style*="font-size: 4rem;"]');
         const scoreText = scoreElement?.textContent?.trim() || '??';
         
-        // Get player info if available
         const platform = document.body?.dataset?.platform || '';
         const username = document.body?.dataset?.username || '';
         const playerInfo = platform && username ? ` (${platform}/${username})` : '';
         
         const shareText = `I got a ${scoreText} Carried Score${playerInfo}! Check yours at ${siteUrl}`;
         
-        // Copy to clipboard
         await navigator.clipboard.writeText(shareText);
-        showToast(' Share link copied to clipboard! Share it with your friends.', 'success');
+        showToast('Share link copied to clipboard! Share it with your friends.', 'success');
         
         if (copyBtn) {
             copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
@@ -425,7 +391,7 @@ async function copyShareLink() {
         }
     } catch (error) {
         console.error('Copy error:', error);
-        showToast(' Failed to copy. Please try again.', 'danger');
+        showToast('Failed to copy. Please try again.', 'danger');
         
         const copyBtn = document.querySelector('.copy-btn');
         if (copyBtn) {
@@ -441,7 +407,6 @@ async function refreshData() {
         return;
     }
     
-    // Get platform and username from data attributes
     const platform = document.body.dataset.platform || document.getElementById('platformData')?.value;
     const username = document.body.dataset.username || document.getElementById('usernameData')?.value;
     
@@ -498,14 +463,12 @@ function clearAndSearch() {
 
 // 9. Feedback
 
-// Star rating for feedback
 let selectedRating = 0;
 
 function setRating(rating) {
     selectedRating = rating;
     document.getElementById('feedbackRating').value = rating;
     
-    // Update star display
     const stars = document.querySelectorAll('.star-rating .fa-star');
     stars.forEach((star, index) => {
         if (index < rating) {
@@ -518,7 +481,6 @@ function setRating(rating) {
     });
 }
 
-// Submit feedback
 async function submitFeedback(event) {
     event.preventDefault();
     
@@ -528,7 +490,6 @@ async function submitFeedback(event) {
     const message = document.getElementById('feedbackMessage').value.trim();
     const statusDiv = document.getElementById('feedbackStatus');
     
-    // Validate
     if (!message) {
         statusDiv.innerHTML = `
             <div class="alert alert-danger alert-sm mb-0">
@@ -538,7 +499,6 @@ async function submitFeedback(event) {
         return;
     }
     
-    // Show loading
     const submitBtn = document.querySelector('#feedbackForm button[type="submit"]');
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
@@ -567,12 +527,10 @@ async function submitFeedback(event) {
                     <i class="fas fa-check-circle"></i> ${result.message}
                 </div>
             `;
-            // Reset form
             document.getElementById('feedbackForm').reset();
             setRating(0);
             document.getElementById('feedbackRating').value = 0;
             
-            // Reset stars
             document.querySelectorAll('.star-rating .fa-star').forEach(star => {
                 star.classList.remove('text-warning');
                 star.classList.add('text-secondary');
@@ -595,7 +553,6 @@ async function submitFeedback(event) {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
         
-        // Auto-hide status after 5 seconds
         setTimeout(() => {
             if (statusDiv.innerHTML) {
                 statusDiv.innerHTML = '';
@@ -613,36 +570,60 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Found platform buttons:', buttons.length);
     
     if (buttons.length > 0) {
-        // Add click event listeners
         buttons.forEach(button => {
             button.removeAttribute('onclick');
             button.addEventListener('click', function() {
                 selectPlatform(this);
             });
         });
-        console.log(' Platform buttons initialized successfully');
+        console.log('Platform buttons initialized');
+    }
+    
+    // --- Initialize Form Submission ---
+    const form = document.getElementById('apiForm');
+    if (form) {
+        console.log('Found form, adding submit listener');
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('Form submitted via event listener');
+            submitApiForm('apiForm');
+        });
+    } else {
+        console.warn('apiForm not found');
+    }
+    
+    // --- Initialize Submit Button (fallback) ---
+    const submitBtn = document.querySelector('#apiForm button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function(e) {
+            console.log('Submit button clicked');
+            // The form's submit event will handle it
+        });
+    }
+    
+    // --- Handle Enter key on username field ---
+    const usernameField = document.getElementById('username');
+    if (usernameField) {
+        usernameField.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                console.log('Enter key pressed on username field');
+                submitApiForm('apiForm');
+            }
+        });
     }
     
     // --- Initialize Share Button ---
     const shareButton = document.querySelector('.share-btn');
     if (shareButton) {
         shareButton.addEventListener('click', shareResult);
-        console.log(' Share button initialized');
+        console.log('Share button initialized');
     }
 
     const copyBtn = document.querySelector('.copy-btn');
     if (copyBtn) {
         copyBtn.addEventListener('click', copyShareLink);
-        console.log(' Copy button initialized');
-    }
-    
-    // Handle form submission (covers Enter key and button click)
-    const form = document.getElementById('apiForm');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault(); // Prevent default form submission
-            submitApiForm('apiForm');
-        });
+        console.log('Copy button initialized');
     }
     
     // --- Show last updated time ---
@@ -659,137 +640,135 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Amount selection
+    // --- Donation Form ---
     const amountBtns = document.querySelectorAll('.amount-btn');
     const customAmount = document.getElementById('customAmount');
     const selectedAmount = document.getElementById('selectedAmount');
     
-    amountBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            // Remove active from all
-            amountBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            
-            if (this.dataset.amount === 'custom') {
-                customAmount.style.display = 'block';
-                customAmount.focus();
-                selectedAmount.value = '';
-            } else {
-                customAmount.style.display = 'none';
-                selectedAmount.value = this.dataset.amount;
-            }
-        });
-    });
-    
-    customAmount.addEventListener('input', function() {
-        if (this.value) {
-            selectedAmount.value = this.value;
-        }
-    });
-    
-    // Form submission
-    document.getElementById('donationForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const amount = selectedAmount.value;
-        if (!amount || parseFloat(amount) < 1) {
-            showDonationStatus('Please select or enter a donation amount (minimum $1).', 'danger');
-            return;
-        }
-        
-        const name = document.getElementById('donorName').value.trim();
-        const email = document.getElementById('donorEmail').value.trim();
-        const message = document.getElementById('donorMessage').value.trim();
-        const isAnonymous = document.getElementById('anonymousDonation').checked;
-        const showOnWall = document.getElementById('showOnWall').checked;
-        
-        // Show loading
-        const donateBtn = document.getElementById('donateBtn');
-        const originalText = donateBtn.innerHTML;
-        donateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-        donateBtn.disabled = true;
-        
-        try {
-            // Create payment intent
-            const response = await fetch('/donate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    amount: amount,
-                    name: name,
-                    email: email,
-                    message: message,
-                    is_anonymous: isAnonymous,
-                    show_on_wall: showOnWall
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (!result.success) {
-                showDonationStatus(result.message || 'Error processing donation.', 'danger');
-                donateBtn.innerHTML = originalText;
-                donateBtn.disabled = false;
-                return;
-            }
-            
-            // Confirm payment with Stripe
-            const { error } = await stripe.confirmCardPayment(result.client_secret, {
-                payment_method: {
-                    card: {
-                        // Stripe Elements will handle this
-                    },
-                    billing_details: {
-                        name: name || 'Anonymous',
-                        email: email || undefined
-                    }
+    if (amountBtns.length > 0) {
+        amountBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                amountBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                if (this.dataset.amount === 'custom') {
+                    customAmount.style.display = 'block';
+                    customAmount.focus();
+                    selectedAmount.value = '';
+                } else {
+                    customAmount.style.display = 'none';
+                    selectedAmount.value = this.dataset.amount;
                 }
             });
+        });
+    }
+    
+    if (customAmount) {
+        customAmount.addEventListener('input', function() {
+            if (this.value) {
+                selectedAmount.value = this.value;
+            }
+        });
+    }
+    
+    const donationForm = document.getElementById('donationForm');
+    if (donationForm) {
+        donationForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
             
-            if (error) {
-                showDonationStatus('Payment failed: ' + error.message, 'danger');
-                donateBtn.innerHTML = originalText;
-                donateBtn.disabled = false;
+            const amount = selectedAmount.value;
+            if (!amount || parseFloat(amount) < 1) {
+                showDonationStatus('Please select or enter a donation amount (minimum $1).', 'danger');
                 return;
             }
             
-            // Payment successful - confirm with server
-            const confirmResponse = await fetch('/api/donation/success', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    payment_intent_id: result.payment_intent_id
-                })
-            });
+            const name = document.getElementById('donorName').value.trim();
+            const email = document.getElementById('donorEmail').value.trim();
+            const message = document.getElementById('donorMessage').value.trim();
+            const isAnonymous = document.getElementById('anonymousDonation').checked;
+            const showOnWall = document.getElementById('showOnWall').checked;
             
-            const confirmResult = await confirmResponse.json();
+            const donateBtn = document.getElementById('donateBtn');
+            const originalText = donateBtn.innerHTML;
+            donateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            donateBtn.disabled = true;
             
-            if (confirmResult.success) {
-                showDonationStatus('🎉 Thank you for your support! Your donation means the world to us.', 'success');
-                document.getElementById('donationForm').reset();
-                document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
-                customAmount.style.display = 'none';
+            try {
+                const response = await fetch('/donate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        amount: amount,
+                        name: name,
+                        email: email,
+                        message: message,
+                        is_anonymous: isAnonymous,
+                        show_on_wall: showOnWall
+                    })
+                });
                 
-                // Refresh supporter wall
-                setTimeout(() => location.reload(), 3000);
-            } else {
-                showDonationStatus('Payment processed but confirmation failed. Please contact support.', 'warning');
+                const result = await response.json();
+                
+                if (!result.success) {
+                    showDonationStatus(result.message || 'Error processing donation.', 'danger');
+                    donateBtn.innerHTML = originalText;
+                    donateBtn.disabled = false;
+                    return;
+                }
+                
+                const { error } = await stripe.confirmCardPayment(result.client_secret, {
+                    payment_method: {
+                        card: {},
+                        billing_details: {
+                            name: name || 'Anonymous',
+                            email: email || undefined
+                        }
+                    }
+                });
+                
+                if (error) {
+                    showDonationStatus('Payment failed: ' + error.message, 'danger');
+                    donateBtn.innerHTML = originalText;
+                    donateBtn.disabled = false;
+                    return;
+                }
+                
+                const confirmResponse = await fetch('/api/donation/success', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        payment_intent_id: result.payment_intent_id
+                    })
+                });
+                
+                const confirmResult = await confirmResponse.json();
+                
+                if (confirmResult.success) {
+                    showDonationStatus('Thank you for your support! Your donation means the world to us.', 'success');
+                    document.getElementById('donationForm').reset();
+                    document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
+                    customAmount.style.display = 'none';
+                    
+                    setTimeout(() => location.reload(), 3000);
+                } else {
+                    showDonationStatus('Payment processed but confirmation failed. Please contact support.', 'warning');
+                }
+                
+            } catch (error) {
+                console.error('Donation error:', error);
+                showDonationStatus('An error occurred. Please try again.', 'danger');
+            } finally {
+                donateBtn.innerHTML = originalText;
+                donateBtn.disabled = false;
             }
-            
-        } catch (error) {
-            console.error('Donation error:', error);
-            showDonationStatus('An error occurred. Please try again.', 'danger');
-        } finally {
-            donateBtn.innerHTML = originalText;
-            donateBtn.disabled = false;
-        }
-    });
+        });
+    }
     
-    console.log(' All initializations complete');
+    console.log('All initializations complete');
 });
 
 // 11. Make functions globally accessible
@@ -805,4 +784,4 @@ window.hideError = hideError;
 window.showToast = showToast;
 window.timeSince = timeSince;
 
-console.log(' All functions loaded and ready');
+console.log('All functions loaded and ready');
