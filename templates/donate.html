@@ -1,0 +1,159 @@
+{% extends "layout.html" %}
+
+{% block title %}Support - Am I Being Carried?{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4><i class="fas fa-heart"></i> Support the Project</h4>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <h5>Powered by Your Support</h5>
+                    <p class="text-muted">
+                        Am I Being Carried? is powered by paid API calls. 
+                        Your donation helps keep the app running for everyone.
+                    </p>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="bg-light p-3 rounded">
+                            <h6><i class="fas fa-coffee"></i> Monthly Costs</h6>
+                            <ul class="list-unstyled small">
+                                <li>• API credits: $30/month</li>
+                                <li>• Server hosting: $20/month</li>
+                                <li>• Database: $15/month</li>
+                            </ul>
+                            <p class="text-muted small mb-0">
+                                Total: ~$65/month to keep running
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-light p-3 rounded">
+                            <h6><i class="fas fa-users"></i> Impact</h6>
+                            <ul class="list-unstyled small">
+                                <li>• {{ donation_count or 0 }} supporters</li>
+                                <li>• {{ user_count or 0 }} active users</li>
+                                <li>• {{ api_calls or 0 }} API calls this month</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Donation Form -->
+                <form id="donationForm">
+                    <!-- Amount Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">Choose an amount</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn btn-outline-primary amount-btn" data-amount="5">
+                                $5
+                            </button>
+                            <button type="button" class="btn btn-outline-primary amount-btn" data-amount="10">
+                                $10
+                            </button>
+                            <button type="button" class="btn btn-outline-primary amount-btn" data-amount="25">
+                                $25
+                            </button>
+                            <button type="button" class="btn btn-outline-primary amount-btn" data-amount="50">
+                                $50
+                            </button>
+                            <button type="button" class="btn btn-outline-primary amount-btn" data-amount="custom">
+                                Custom
+                            </button>
+                        </div>
+                        <input type="number" class="form-control mt-2" id="customAmount" 
+                               placeholder="Enter custom amount ($)" 
+                               style="display: none;" min="1" step="0.01">
+                        <input type="hidden" id="selectedAmount" name="amount">
+                    </div>
+                    
+                    <!-- Donor Info -->
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control" id="donorName" 
+                                   placeholder="Your name (optional)">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="email" class="form-control" id="donorEmail" 
+                                   placeholder="Your email (for receipt)">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-2">
+                        <textarea class="form-control" id="donorMessage" 
+                                  rows="2" placeholder="Leave a message (optional)"></textarea>
+                    </div>
+                    
+                    <div class="mt-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="anonymousDonation">
+                            <label class="form-check-label small" for="anonymousDonation">
+                                Make this donation anonymous
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="showOnWall">
+                            <label class="form-check-label small" for="showOnWall">
+                                Show my name on the supporter wall
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-warning w-100 mt-3" id="donateBtn">
+                        <i class="fas fa-heart"></i> Donate Now
+                    </button>
+                    
+                    <div id="donationStatus" class="mt-2"></div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Supporter Wall -->
+        <div class="card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h5><i class="fas fa-users"></i> Supporter Wall</h5>
+            </div>
+            <div class="card-body">
+                {% if supporters %}
+                    <div class="row">
+                        {% for supporter in supporters %}
+                            <div class="col-md-4 mb-2">
+                                <div class="bg-light p-2 rounded text-center">
+                                    <strong>
+                                        {% if supporter.is_anonymous %}
+                                            Anonymous
+                                        {% else %}
+                                            {{ supporter.name or 'Anonymous' }}
+                                        {% endif %}
+                                    </strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {% if supporter.message %}
+                                            "{{ supporter.message[:50] }}"
+                                        {% else %}
+                                            ❤️ Supported the project
+                                        {% endif %}
+                                    </small>
+                                    <br>
+                                    <small class="text-warning">
+                                        <i class="fas fa-star"></i>
+                                    </small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center mb-0">
+                        Be the first supporter! ❤️
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

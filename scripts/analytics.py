@@ -274,6 +274,35 @@ class Analytics:
             
             return dict(error_counts)
 
+    def get_donation_stats(self):
+        """Get donation statistics"""
+        with app.app_context():
+            from models import Donation
+            
+            total_donations = Donation.query.filter_by(status='succeeded').count()
+            total_amount = db.session.query(
+                db.func.sum(Donation.amount)
+            ).filter_by(status='succeeded').scalar() or 0
+            
+            recent_donors = Donation.query.filter_by(
+                status='succeeded',
+                is_anonymous=False
+            ).order_by(Donation.created_at.desc()).limit(10).all()
+            
+            return {
+                'total_donations': total_donations,
+                'total_amount': float(total_amount),
+                'recent_donors': [
+                    {
+                        'name': d.name or 'Anonymous',
+                        'message': d.message,
+                        'amount': float(d.amount),
+                        'created_at': d.created_at.isoformat()
+                    }
+                    for d in recent_donors
+                ]
+            }
+
 
 # ============================================
 # CLI Commands

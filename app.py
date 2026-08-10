@@ -13,6 +13,8 @@ from flask_limiter.util import get_remote_address
 import redis
 import re
 import json
+import stripe
+from models import PlayerProfile, APICallLog, Feedback, Donation
 
 load_dotenv()
 
@@ -22,6 +24,9 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 app.secret_key = os.getenv("SECRET_KEY")
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 
 # Redis connection
 redis_client = redis.Redis(
@@ -103,56 +108,6 @@ app.config["SESSION_SQLALCHEMY_TABLE"] = "sessions"  # Automatically creates thi
 
 db.init_app(app)
 Session(app)
-
-# Database Models
-class PlayerProfile(db.Model):
-    __tablename__ = 'player_profiles'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    platform = db.Column(db.String(50), nullable=False)
-    username = db.Column(db.String(100), nullable=False)
-    data = db.Column(db.JSON, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
-    last_accessed = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    api_call_count = db.Column(db.Integer, default=1)
-    session_id = db.Column(db.String(255))  # Store session ID for tracking
-    
-    __table_args__ = (
-        db.UniqueConstraint('platform', 'username', name='unique_player'),
-    )
-
-class APICallLog(db.Model):
-    """Optional: Track API calls for monitoring"""
-    __tablename__ = 'api_call_logs'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    platform = db.Column(db.String(50))
-    username = db.Column(db.String(100))
-    success = db.Column(db.Boolean, default=True)
-    response_code = db.Column(db.Integer)
-    error_message = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    response_size = db.Column(db.Integer)  # Size of response in bytes
-    ip_address = db.Column(db.String(45))
-    region = db.Column(db.String(10)) 
-
-class Feedback(db.Model):
-    __tablename__ = 'feedback'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    email = db.Column(db.String(100))
-    rating = db.Column(db.Integer)  # 1-5 stars
-    message = db.Column(db.Text, nullable=False)
-    page_url = db.Column(db.String(255))
-    user_agent = db.Column(db.String(255))
-    ip_address = db.Column(db.String(45))
-    is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<Feedback {self.id}: {self.message[:30]}>'
 
 # Create tables when the app starts
 with app.app_context():
@@ -1463,3 +1418,160 @@ def submit_feedback():
             'success': False,
             'message': 'Failed to submit feedback. Please try again.'
         }), 500
+
+@app.route('/donate', methods=['GET', 'POST'])
+def donate():
+    """Donation page with Stripe integration"""
+    if request.method == 'GET':
+        return render_template('donate.html', 
+                             stripe_publishable_key=STRIPE_PUBLISHABLE_KEY)
+    
+    # POST request - Process donation
+    try:
+        data = request.json
+        amount = data.get('amount')
+        name = data.get('name', '').strip()
+        email = data.get('email', '').strip()
+        message = data.get('message', '').strip()
+        is_anonymous = data.get('is_anonymous', False)
+        show_on_wall = data.get('show_on_wall', False)
+        
+        # Validate amount
+        if not amount or float(amount) < 1:
+            return jsonify({
+                'success': False,
+                'message': 'Minimum donation is $1.00'
+            }), 400
+        
+        # Validate email
+        if email and not is_valid_email(email):
+            return jsonify({
+                'success': False,
+                'message': 'Please enter a valid email address'
+            }), 400
+        
+        # Create Stripe customer
+        customer = stripe.Customer.create(
+            name=name if name else None,
+            email=email if email else None,
+            metadata={
+                'name': name or 'Anonymous',
+                'message': message,
+                'is_anonymous': str(is_anonymous),
+                'show_on_wall': str(show_on_wall)
+            }
+        )
+        
+        # Create payment intent
+        payment_intent = stripe.PaymentIntent.create(
+            amount=int(float(amount) * 100),  # Convert to cents
+            currency='usd',
+            customer=customer.id,
+            metadata={
+                'name': name or 'Anonymous',
+                'email': email or '',
+                'message': message,
+                'is_anonymous': str(is_anonymous)
+            },
+            receipt_email=email if email else None,
+            description='Donation to Am I Being Carried?',
+            statement_descriptor='Am I Being Carried?',
+            payment_method_types=['card']
+        )
+        
+        # Save to database
+        donation = Donation(
+            name=name,
+            email=email,
+            amount=amount,
+            message=message,
+            stripe_payment_id=payment_intent.id,
+            stripe_customer_id=customer.id,
+            status='pending',
+            is_anonymous=is_anonymous,
+            show_on_wall=show_on_wall
+        )
+        db.session.add(donation)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'client_secret': payment_intent.client_secret,
+            'payment_intent_id': payment_intent.id
+        })
+        
+    except stripe.error.StripeError as e:
+        print(f"Stripe error: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Payment processing error. Please try again.'
+        }), 500
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'An error occurred. Please try again.'
+        }), 500
+
+@app.route('/api/donation/success', methods=['POST'])
+def donation_success():
+    """Handle successful donation confirmation"""
+    try:
+        data = request.json
+        payment_intent_id = data.get('payment_intent_id')
+        
+        if not payment_intent_id:
+            return jsonify({'success': False, 'message': 'Missing payment intent ID'}), 400
+        
+        # Verify payment with Stripe
+        payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        
+        if payment_intent.status == 'succeeded':
+            # Update donation record
+            donation = Donation.query.filter_by(
+                stripe_payment_id=payment_intent_id
+            ).first()
+            
+            if donation:
+                donation.status = 'succeeded'
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'Thank you for your support!',
+                    'donation_id': donation.id
+                })
+        
+        return jsonify({'success': False, 'message': 'Payment not confirmed'}), 400
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'success': False, 'message': 'Error processing confirmation'}), 500
+
+@app.route('/webhook', methods=['POST'])
+def stripe_webhook():
+    """Handle Stripe webhook events"""
+    payload = request.get_data(as_text=True)
+    sig_header = request.headers.get('Stripe-Signature')
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError:
+        return 'Invalid payload', 400
+    except stripe.error.SignatureVerificationError:
+        return 'Invalid signature', 400
+    
+    # Handle the event
+    if event['type'] == 'payment_intent.succeeded':
+        payment_intent = event['data']['object']
+        # Update donation status
+        donation = Donation.query.filter_by(
+            stripe_payment_id=payment_intent['id']
+        ).first()
+        if donation:
+            donation.status = 'succeeded'
+            db.session.commit()
+    
+    return 'Success', 200

@@ -2,6 +2,8 @@
 // ALL FUNCTIONS DEFINED AT THE TOP LEVEL
 // ============================================
 
+const stripe = Stripe('{{ stripe_publishable_key }}');
+
 // 1. Helper Functions (defined first)
 function showPreloader() {
     console.log('Showing preloader');
@@ -63,6 +65,12 @@ function hideError() {
     if (alert) {
         alert.style.display = 'none';
     }
+}
+
+function showDonationStatus(message, type = 'info') {
+    const status = document.getElementById('donationStatus');
+    status.innerHTML = `<div class="alert alert-${type} alert-sm mb-0">${message}</div>`;
+    setTimeout(() => status.innerHTML = '', 10000);
 }
 
 // 2. Toast Notification Function
@@ -650,6 +658,136 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+
+    // Amount selection
+    const amountBtns = document.querySelectorAll('.amount-btn');
+    const customAmount = document.getElementById('customAmount');
+    const selectedAmount = document.getElementById('selectedAmount');
+    
+    amountBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Remove active from all
+            amountBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            if (this.dataset.amount === 'custom') {
+                customAmount.style.display = 'block';
+                customAmount.focus();
+                selectedAmount.value = '';
+            } else {
+                customAmount.style.display = 'none';
+                selectedAmount.value = this.dataset.amount;
+            }
+        });
+    });
+    
+    customAmount.addEventListener('input', function() {
+        if (this.value) {
+            selectedAmount.value = this.value;
+        }
+    });
+    
+    // Form submission
+    document.getElementById('donationForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const amount = selectedAmount.value;
+        if (!amount || parseFloat(amount) < 1) {
+            showDonationStatus('Please select or enter a donation amount (minimum $1).', 'danger');
+            return;
+        }
+        
+        const name = document.getElementById('donorName').value.trim();
+        const email = document.getElementById('donorEmail').value.trim();
+        const message = document.getElementById('donorMessage').value.trim();
+        const isAnonymous = document.getElementById('anonymousDonation').checked;
+        const showOnWall = document.getElementById('showOnWall').checked;
+        
+        // Show loading
+        const donateBtn = document.getElementById('donateBtn');
+        const originalText = donateBtn.innerHTML;
+        donateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        donateBtn.disabled = true;
+        
+        try {
+            // Create payment intent
+            const response = await fetch('/donate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    amount: amount,
+                    name: name,
+                    email: email,
+                    message: message,
+                    is_anonymous: isAnonymous,
+                    show_on_wall: showOnWall
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                showDonationStatus(result.message || 'Error processing donation.', 'danger');
+                donateBtn.innerHTML = originalText;
+                donateBtn.disabled = false;
+                return;
+            }
+            
+            // Confirm payment with Stripe
+            const { error } = await stripe.confirmCardPayment(result.client_secret, {
+                payment_method: {
+                    card: {
+                        // Stripe Elements will handle this
+                    },
+                    billing_details: {
+                        name: name || 'Anonymous',
+                        email: email || undefined
+                    }
+                }
+            });
+            
+            if (error) {
+                showDonationStatus('Payment failed: ' + error.message, 'danger');
+                donateBtn.innerHTML = originalText;
+                donateBtn.disabled = false;
+                return;
+            }
+            
+            // Payment successful - confirm with server
+            const confirmResponse = await fetch('/api/donation/success', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    payment_intent_id: result.payment_intent_id
+                })
+            });
+            
+            const confirmResult = await confirmResponse.json();
+            
+            if (confirmResult.success) {
+                showDonationStatus('🎉 Thank you for your support! Your donation means the world to us.', 'success');
+                document.getElementById('donationForm').reset();
+                document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
+                customAmount.style.display = 'none';
+                
+                // Refresh supporter wall
+                setTimeout(() => location.reload(), 3000);
+            } else {
+                showDonationStatus('Payment processed but confirmation failed. Please contact support.', 'warning');
+            }
+            
+        } catch (error) {
+            console.error('Donation error:', error);
+            showDonationStatus('An error occurred. Please try again.', 'danger');
+        } finally {
+            donateBtn.innerHTML = originalText;
+            donateBtn.disabled = false;
+        }
+    });
     
     console.log(' All initializations complete');
 });

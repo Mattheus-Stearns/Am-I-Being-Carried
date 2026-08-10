@@ -50,6 +50,11 @@
                             <i class="fas fa-sync"></i> Find Out
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('donate') }}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-heart"></i> Support
+                        </a>
+                    </li>
                     {% if session.get('data_fetched') %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('results') }}">
@@ -133,6 +138,9 @@
                         <button type="submit" class="btn btn-primary btn-sm mt-2">
                             <i class="fas fa-paper-plane"></i> Send Feedback
                         </button>
+                        <a href="{{ url_for('donate') }}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-heart"></i> Support
+                        </a>
                         <div id="feedbackStatus" class="mt-2"></div>
                     </form>
                 </div>
@@ -153,6 +161,7 @@
     <!-- Main JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
    
-    
+    <!-- Stripe JavaScript -->
+    <script src="https://js.stripe.com/v3/"></script>
 </body>
 </html>
