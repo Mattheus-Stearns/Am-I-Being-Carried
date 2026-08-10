@@ -1,27 +1,22 @@
+# models.py
+from extensions import db
 from datetime import datetime, timezone
-from database import db
+from sqlalchemy.dialects.postgresql import JSON
 
 class PlayerProfile(db.Model):
     __tablename__ = 'player_profiles'
-    
     id = db.Column(db.Integer, primary_key=True)
-    platform = db.Column(db.String(50), nullable=False)
-    username = db.Column(db.String(100), nullable=False)
-    data = db.Column(db.JSON, nullable=False)
+    platform = db.Column(db.String(50))
+    username = db.Column(db.String(100))
+    data = db.Column(JSON)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     last_accessed = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    api_call_count = db.Column(db.Integer, default=1)
-    session_id = db.Column(db.String(255))  # Store session ID for tracking
-    
-    __table_args__ = (
-        db.UniqueConstraint('platform', 'username', name='unique_player'),
-    )
+    api_call_count = db.Column(db.Integer, default=0)
+    session_id = db.Column(db.String(255))
 
 class APICallLog(db.Model):
-    """Optional: Track API calls for monitoring"""
     __tablename__ = 'api_call_logs'
-    
     id = db.Column(db.Integer, primary_key=True)
     platform = db.Column(db.String(50))
     username = db.Column(db.String(100))
@@ -29,42 +24,34 @@ class APICallLog(db.Model):
     response_code = db.Column(db.Integer)
     error_message = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    response_size = db.Column(db.Integer)  # Size of response in bytes
+    response_size = db.Column(db.Integer)
     ip_address = db.Column(db.String(45))
-    region = db.Column(db.String(10)) 
+    region = db.Column(db.String(10))
 
 class Feedback(db.Model):
     __tablename__ = 'feedback'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     email = db.Column(db.String(100))
-    rating = db.Column(db.Integer)  # 1-5 stars
+    rating = db.Column(db.Integer)
     message = db.Column(db.Text, nullable=False)
     page_url = db.Column(db.String(255))
     user_agent = db.Column(db.String(255))
     ip_address = db.Column(db.String(45))
     is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<Feedback {self.id}: {self.message[:30]}>'
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
 
 class Donation(db.Model):
     __tablename__ = 'donations'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     email = db.Column(db.String(100))
-    amount = db.Column(db.Numeric(10, 2))  # Donation amount in USD
+    amount = db.Column(db.Numeric(10, 2))
     currency = db.Column(db.String(3), default='usd')
     message = db.Column(db.Text)
     stripe_payment_id = db.Column(db.String(255))
     stripe_customer_id = db.Column(db.String(255))
-    status = db.Column(db.String(50), default='pending')  # pending, succeeded, failed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(50), default='pending')
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     is_anonymous = db.Column(db.Boolean, default=False)
     show_on_wall = db.Column(db.Boolean, default=False)
-    
-    def __repr__(self):
-        return f'<Donation {self.id}: ${self.amount} from {self.name or "Anonymous"}>'
