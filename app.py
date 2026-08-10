@@ -5,6 +5,7 @@ from extensions import db, limiter, migrate, redis_client
 from routes import register_blueprints
 from services.cache_service import load_authorized_ips
 import stripe
+from datetime import datetime
 
 def create_app():
     """Application factory"""
@@ -23,6 +24,69 @@ def create_app():
     
     # Register blueprints
     register_blueprints(app)
+    
+    # ============================================
+    # REGISTER TEMPLATE FILTERS HERE
+    # ============================================
+    
+    @app.template_filter('format_date')
+    def format_date(date_string):
+        """Format date string for display"""
+        if not date_string:
+            return 'N/A'
+        try:
+            # Handle different date formats
+            if 'Z' in date_string:
+                date_string = date_string.replace('Z', '+00:00')
+            date_obj = datetime.fromisoformat(date_string)
+            return date_obj.strftime('%Y-%m-%d %H:%M')
+        except:
+            return date_string[:16] if date_string else 'N/A'
+    
+    @app.template_filter('time_ago')
+    def time_ago(date_string):
+        """Convert date to 'X time ago' format"""
+        if not date_string:
+            return 'N/A'
+        try:
+            if 'Z' in date_string:
+                date_string = date_string.replace('Z', '+00:00')
+            date_obj = datetime.fromisoformat(date_string)
+            now = datetime.now()
+            diff = now - date_obj
+            
+            seconds = diff.total_seconds()
+            if seconds < 60:
+                return 'just now'
+            elif seconds < 3600:
+                minutes = int(seconds / 60)
+                return f'{minutes} minute{"s" if minutes > 1 else ""} ago'
+            elif seconds < 86400:
+                hours = int(seconds / 3600)
+                return f'{hours} hour{"s" if hours > 1 else ""} ago'
+            elif seconds < 604800:
+                days = int(seconds / 86400)
+                return f'{days} day{"s" if days > 1 else ""} ago'
+            else:
+                return date_obj.strftime('%Y-%m-%d')
+        except:
+            return date_string
+    
+    @app.template_filter('truncate')
+    def truncate(text, length=50):
+        """Truncate text to specified length"""
+        if not text:
+            return ''
+        if len(text) <= length:
+            return text
+        return text[:length] + '...'
+    
+    @app.template_filter('pluralize')
+    def pluralize(count, singular, plural=None):
+        """Pluralize a word based on count"""
+        if not plural:
+            plural = singular + 's'
+        return singular if count == 1 else plural
     
     # Load authorized IPs
     with app.app_context():

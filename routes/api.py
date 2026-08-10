@@ -1,7 +1,7 @@
 # routes/api.py
 from flask import request, jsonify, session
 from . import api_bp
-from models import PlayerProfile, APICallLog
+from models import PlayerProfile, APICallLog, Feedback
 from extensions import db, limiter
 from services.api_service import fetch_player_data
 from services.cache_service import get_cached_data, save_cached_data
