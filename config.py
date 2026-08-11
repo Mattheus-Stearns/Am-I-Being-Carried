@@ -16,7 +16,7 @@ class Config:
     STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
     
     # API
-    API_KEY = os.getenv('API_KEY')
+    API_KEY = os.getenv('API_KEY', '').strip()
     
     # Redis
     REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')

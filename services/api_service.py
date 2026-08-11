@@ -7,62 +7,75 @@ from config import Config
 def fetch_player_data(platform, username):
     """Fetch player data from API"""
     api_key = Config.API_KEY
+    
     if not api_key:
+        print("❌ API_KEY not configured")
         return None, 'API_KEY not configured', 500
     
-    # ============================================
-    # DEBUG: Log exactly what we're sending
-    # ============================================
-    print("="*60)
-    print("🔍 API REQUEST DEBUG")
-    print("="*60)
-    print(f"Platform: {platform}")
-    print(f"Username: {username}")
+    print(f"🔑 API Key: {api_key[:10]}...")
+    print(f"🔍 Fetching: {platform}/{username}")
     
-    # Build the URL with params
-    url = "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions"
-    params = {
-        "platform": platform,
-        "username": username
-    }
     headers = {
         "X-API-Key": api_key,
-        "API-Snapshot-Version": "6",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
+        "API-Snapshot-Version": "6"
     }
-    
-    print(f"URL: {url}")
-    print(f"Params: {params}")
-    print(f"Headers: {headers}")
-    print("="*60)
     
     try:
         response = requests.get(
-            url,
+            "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions",
             headers=headers,
-            params=params,
+            params={
+                "platform": platform,
+                "username": username
+            },
             timeout=30
         )
         
-        print(f"Response Status: {response.status_code}")
-        print(f"Response Headers: {dict(response.headers)}")
-        print(f"Response Body (first 500 chars): {response.text[:500]}")
-        print("="*60)
+        print(f"📊 Status: {response.status_code}")
         
-        # Handle response
         if response.status_code == 200:
             try:
                 data = response.json()
-                if 'items' in data:
-                    return data, None, 200
+                print(f"📊 Response type: {type(data)}")
+                print(f"📊 Response keys: {list(data.keys()) if isinstance(data, dict) else 'not dict'}")
+                print(f"📊 Full response (first 1000 chars): {json.dumps(data, indent=2)[:1000]}")
+                
+                # Check for the actual data structure
+                if 'data' in data:
+                    actual_data = data['data']
+                    print(f"📊 Found 'data' key with items: {'items' in actual_data}")
+                    if 'items' in actual_data:
+                        item_count = len(actual_data['items'])
+                        print(f"📊 Items count: {item_count}")
+                        if item_count > 0:
+                            return actual_data, None, 200
+                        else:
+                            print("⚠️ Items array is empty!")
+                            return None, f'No data found for {username} on {platform}', 422
+                    else:
+                        print("⚠️ No 'items' in data.data")
+                        return None, 'Invalid response structure', 422
+                elif 'items' in data:
+                    item_count = len(data['items'])
+                    print(f"📊 Items count: {item_count}")
+                    if item_count > 0:
+                        return data, None, 200
+                    else:
+                        print("⚠️ Items array is empty!")
+                        return None, f'No data found for {username} on {platform}', 422
                 else:
-                    return None, 'No items in response', 422
-            except json.JSONDecodeError:
+                    print("⚠️ No 'items' in response")
+                    return None, 'Invalid response structure', 422
+                    
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON decode error: {e}")
                 return None, 'Invalid JSON response', 502
         else:
-            return None, f'API returned {response.status_code}', response.status_code
+            print(f"❌ API error: {response.status_code} - {response.text[:200]}")
+            return None, f'API error: {response.status_code}', response.status_code
             
     except Exception as e:
-        print(f"Exception: {e}")
+        print(f"❌ Exception: {e}")
+        import traceback
+        traceback.print_exc()
         return None, str(e), 500
