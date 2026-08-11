@@ -43,37 +43,48 @@ function hidePreloader() {
     }
 }
 
+// Show Error Function - Fixed
 function showError(message, suggestion = null, suggestionUsername = null) {
-    console.log('Showing error:', message);
+    console.log('Showing error:', message, suggestion, suggestionUsername);
     const alert = document.getElementById('errorAlert');
-    if (alert) {
-        document.getElementById('errorMessage').textContent = message;
-        
-        const suggestionText = document.getElementById('suggestionText');
-        const suggestionButton = document.getElementById('suggestionButton');
-        const suggestionUsernameEl = document.getElementById('suggestionUsername');
-        
-        if (suggestion && suggestionUsername) {
-            // Show "Did you mean?" button
-            suggestionText.textContent = suggestion;
-            suggestionUsernameEl.textContent = suggestionUsername;
-            suggestionButton.style.display = 'inline-block';
-        } else if (suggestion) {
-            // Show just the text suggestion without a button
-            suggestionText.textContent = suggestion;
-            suggestionButton.style.display = 'none';
-        } else {
-            suggestionText.textContent = '';
-            suggestionButton.style.display = 'none';
-        }
-        
-        alert.style.display = 'block';
-        setTimeout(() => {
-            hideError();
-        }, 10000);
-    } else {
+    if (!alert) {
+        console.error('Error alert not found!');
         alert('Error: ' + message);
+        return;
     }
+    
+    // Set the error message
+    const errorMessageEl = document.getElementById('errorMessage');
+    if (errorMessageEl) {
+        errorMessageEl.textContent = message;
+    }
+    
+    // Handle suggestion
+    const suggestionText = document.getElementById('suggestionText');
+    const suggestionButton = document.getElementById('suggestionButton');
+    const suggestionUsernameEl = document.getElementById('suggestionUsername');
+    
+    if (suggestion && suggestionUsername) {
+        // Show "Did you mean?" button
+        if (suggestionText) suggestionText.textContent = suggestion;
+        if (suggestionUsernameEl) suggestionUsernameEl.textContent = suggestionUsername;
+        if (suggestionButton) suggestionButton.style.display = 'inline-block';
+    } else if (suggestion) {
+        // Show just the text suggestion without a button
+        if (suggestionText) suggestionText.textContent = suggestion;
+        if (suggestionButton) suggestionButton.style.display = 'none';
+    } else {
+        if (suggestionText) suggestionText.textContent = '';
+        if (suggestionButton) suggestionButton.style.display = 'none';
+    }
+    
+    // Show the alert
+    alert.style.display = 'block';
+    
+    // Auto-hide after 10 seconds
+    setTimeout(() => {
+        hideError();
+    }, 10000);
 }
 
 function hideError() {
@@ -177,6 +188,7 @@ async function submitApiForm(formId) {
     }
     
     const username = usernameInput.value.trim();
+    console.log('Username:', username);
     
     // Validate username
     const validation = validateUsername(username);
@@ -187,7 +199,7 @@ async function submitApiForm(formId) {
     
     // Get selected platform
     const platformId = document.getElementById('selectedPlatform').value;
-    console.log('Platform ID from hidden input:', platformId);
+    console.log('Platform ID:', platformId);
     
     if (!platformId) {
         showError('Please select a platform first!');
@@ -202,23 +214,16 @@ async function submitApiForm(formId) {
     console.log('Submitting form for:', platformId, username);
     showPreloader();
     
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-    data.force_refresh = true;
-    console.log('Form data with force_refresh:', data);
+    // Build the data
+    const data = {
+        platform_id: platformId,
+        username: username,
+        force_refresh: true
+    };
+    console.log('Request data:', data);
     
     try {
-        // Clear the session
-        console.log('Clearing session...');
-        await fetch('/api/clear_session', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-        console.log('Session cleared');
-        
-        // Make the API query
+        // Make the API query directly - skip clearing session for now
         console.log('Making API query to /api/query...');
         const response = await fetch('/api/query', {
             method: 'POST',
@@ -228,36 +233,34 @@ async function submitApiForm(formId) {
             body: JSON.stringify(data)
         });
         
+        console.log('Response status:', response.status);
         const result = await response.json();
-        console.log('Response:', result);
+        console.log('Response data:', result);
         
         if (result.success) {
             window.location.href = '/results';
-        } else {
-            let errorMessage = result.message || 'Failed to fetch data';
-            let suggestionText = null;
-            let suggestionUsername = null;
-            
-            // Handle different error types
-            if (result.error_code === 'PLAYER_NOT_FOUND' && result.suggestion) {
-                errorMessage = result.message;
-                suggestionText = `Did you mean "${result.suggestion.username}"? (Found ${result.suggestion.search_count} successful searches)`;
-                suggestionUsername = result.suggestion.username;
-            } else if (result.suggestion && typeof result.suggestion === 'object') {
-                errorMessage = result.message;
-                suggestionText = `Try searching for "${result.suggestion.username}" instead?`;
-                suggestionUsername = result.suggestion.username;
-            } else if (result.suggestion && typeof result.suggestion === 'string') {
-                // Simple string suggestion (no button)
-                suggestionText = result.suggestion;
-            }
-            
-            showError(errorMessage, suggestionText, suggestionUsername);
-            hidePreloader();
+            return;
         }
+        
+        // Handle errors
+        let errorMessage = result.message || 'Failed to fetch data';
+        let suggestionText = null;
+        let suggestionUsername = null;
+        
+        // Check if we have a suggestion object
+        if (result.suggestion && typeof result.suggestion === 'object') {
+            suggestionText = `Did you mean "${result.suggestion.username}"? (Found ${result.suggestion.search_count} successful searches)`;
+            suggestionUsername = result.suggestion.username;
+        } else if (result.suggestion && typeof result.suggestion === 'string') {
+            suggestionText = result.suggestion;
+        }
+        
+        showError(errorMessage, suggestionText, suggestionUsername);
+        hidePreloader();
+        
     } catch (error) {
-        console.error('Error:', error);
-        showError('An error occurred while processing your request.');
+        console.error('Fetch error:', error);
+        showError('An error occurred while processing your request. Please try again.');
         hidePreloader();
     }
 }
