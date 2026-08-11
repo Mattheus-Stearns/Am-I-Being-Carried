@@ -185,7 +185,6 @@ def results():
     # Process matches - extract all competitive matches
     all_matches = []
     competitive_playlists = [
-        'Ranked Duel 1v1',
         'Ranked Doubles 2v2',
         'Ranked Standard 3v3'
     ]
