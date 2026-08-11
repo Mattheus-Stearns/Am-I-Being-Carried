@@ -46,22 +46,16 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="handleApiQuery()">
-                            <i class="fas fa-sync"></i> Find Out
+                        <a class="nav-link" href="{{ url_for('main.results') }}">
+                            <i class="fas fa-sync"></i> Results
                         </a>
                     </li>
+                    
                     <li class="nav-item">
                         <a href="{{ url_for('support.donate') }}" class="btn btn-warning btn-sm">
                             <i class="fas fa-heart"></i> Support
                         </a>
                     </li>
-                    {% if session.get('data_fetched') %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.results') }}">
-                            <i class="fas fa-chart-bar"></i> Results
-                        </a>
-                    </li>
-                    {% endif %}
                 </ul>
             </div>
         </div>
