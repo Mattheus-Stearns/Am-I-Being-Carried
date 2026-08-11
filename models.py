@@ -2,8 +2,7 @@
 from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSON
-
-db = SQLAlchemy()
+from extensions import db
 
 class PlayerProfile(db.Model):
     __tablename__ = 'player_profiles'
