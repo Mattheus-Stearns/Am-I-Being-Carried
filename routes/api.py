@@ -99,6 +99,21 @@ def refresh_api():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@api_bp.route('/clear_session', methods=['POST'])
+def clear_session():
+    """Clear the current session data"""
+    try:
+        session.clear()
+        return jsonify({
+            'success': True,
+            'message': 'Session cleared successfully'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 @api_bp.route('/feedback', methods=['POST'])
 def submit_feedback():
     """Submit feedback"""
