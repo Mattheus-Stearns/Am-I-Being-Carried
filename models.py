@@ -56,3 +56,24 @@ class Donation(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     is_anonymous = db.Column(db.Boolean, default=False)
     show_on_wall = db.Column(db.Boolean, default=False)
+
+class UsernameSuggestion(db.Model):
+    __tablename__ = 'username_suggestions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    platform = db.Column(db.String(50), nullable=False)
+    username = db.Column(db.String(100), nullable=False)
+    display_name = db.Column(db.String(100))  # The correct/cleaned version
+    search_count = db.Column(db.Integer, default=0)
+    success_count = db.Column(db.Integer, default=0)
+    last_searched = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    
+    # Index for faster queries
+    __table_args__ = (
+        db.Index('idx_username_suggestions_platform_username', 'platform', 'username'),
+        db.Index('idx_username_suggestions_search_count', 'search_count'),
+    )
+    
+    def __repr__(self):
+        return f'<UsernameSuggestion {self.platform}/{self.username}: {self.search_count} searches>'

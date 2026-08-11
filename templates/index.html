@@ -48,11 +48,29 @@
                         <small class="text-muted" id="platformStatus">Select one platform to search</small>
                     </div>
                     
+                    <!-- Add this near the search form -->
+                    <div id="errorAlert" class="alert alert-danger" style="display: none;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="errorMessage"></span>
+                        <div id="errorSuggestion" class="text-muted small mt-1"></div>
+                    </div>
+
                     <!-- Username Field -->
                     <div class="mb-3">
                         <label for="username" class="form-label">Username:</label>
                         <input type="text" class="form-control" id="username" name="username" 
                             placeholder="Enter username" required>
+                    </div>
+
+                    <div id="errorAlert" class="alert alert-danger" style="display: none;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="errorMessage"></span>
+                        <div id="errorSuggestion" class="mt-2">
+                            <span class="text-muted" id="suggestionText"></span>
+                            <button id="suggestionButton" class="btn btn-sm btn-outline-primary mt-1" style="display: none;">
+                                <i class="fas fa-search"></i> Search for "<span id="suggestionUsername"></span>"
+                            </button>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-primary">

@@ -43,15 +43,29 @@ function hidePreloader() {
     }
 }
 
-function showError(message) {
+function showError(message, suggestion = null, suggestionUsername = null) {
     console.log('Showing error:', message);
     const alert = document.getElementById('errorAlert');
     if (alert) {
         document.getElementById('errorMessage').textContent = message;
+        
+        const suggestionText = document.getElementById('suggestionText');
+        const suggestionButton = document.getElementById('suggestionButton');
+        const suggestionUsernameEl = document.getElementById('suggestionUsername');
+        
+        if (suggestion && suggestionUsername) {
+            suggestionText.textContent = suggestion;
+            suggestionUsernameEl.textContent = suggestionUsername;
+            suggestionButton.style.display = 'inline-block';
+        } else {
+            suggestionText.textContent = '';
+            suggestionButton.style.display = 'none';
+        }
+        
         alert.style.display = 'block';
         setTimeout(() => {
             hideError();
-        }, 5000);
+        }, 10000);
     } else {
         alert('Error: ' + message);
     }
@@ -205,16 +219,24 @@ async function submitApiForm(formId) {
         const result = await response.json();
         console.log('Response:', result);
         
-        if (response.status === 429) {
-            showError(result.message || 'Rate limit exceeded. Please try again later.');
-            hidePreloader();
-            return;
-        }
-        
         if (result.success) {
             window.location.href = '/results';
         } else {
-            showError(result.message || 'Failed to fetch data');
+            let errorMessage = result.message || 'Failed to fetch data';
+            let suggestionText = null;
+            let suggestionUsername = null;
+            
+            if (result.error_code === 'PLAYER_NOT_FOUND' && result.suggestion) {
+                errorMessage = result.message;
+                suggestionText = `Did you mean "${result.suggestion.username}"? (Found ${result.suggestion.success_count} successful searches)`;
+                suggestionUsername = result.suggestion.username;
+            } else if (result.suggestion) {
+                errorMessage = result.message;
+                suggestionText = `Try searching for "${result.suggestion.username}" instead?`;
+                suggestionUsername = result.suggestion.username;
+            }
+            
+            showError(errorMessage, suggestionText, suggestionUsername);
             hidePreloader();
         }
     } catch (error) {
@@ -600,6 +622,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // The form's submit event will handle it
         });
     }
+
+    // Suggestion button click handler
+    document.getElementById('suggestionButton').addEventListener('click', function() {
+        const username = document.getElementById('suggestionUsername').textContent;
+        if (username) {
+            document.getElementById('username').value = username;
+            submitApiForm('apiForm');
+        }
+    });
     
     // --- Handle Enter key on username field ---
     const usernameField = document.getElementById('username');

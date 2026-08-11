@@ -26,6 +26,7 @@ if __name__ == "__main__":
         print("  vacuum")
         print("  archive")
         print("  view_feedback")
+        print("  populate_suggestions")
         sys.exit(1)
     
     script = sys.argv[1]
@@ -61,5 +62,8 @@ if __name__ == "__main__":
     elif script == "analyze_failures":
         from scripts.analyze_failures import analyze_failures
         analyze_failures()
+    elif script == "populate_suggestions":
+        from scripts.populate_suggestions import populate_from_logs
+        populate_from_logs()
     else:
         print(f"Unknown script: {script}")
