@@ -11,13 +11,14 @@ from pathlib import Path
 # Add parent directory to path so we can import app
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app import app, db, APICallLog
+from app import app, db
 from datetime import datetime, timedelta, timezone
 from collections import Counter
 import json
 import click
 import geoip2.database
 from geoip2.errors import AddressNotFoundError
+from models import APICallLog
 
 # Configure GeoIP database path
 GEOIP_DB_PATH = Path(__file__).parent.parent / 'ip_2_geo_db' / 'GeoLite2-City.mmdb'
