@@ -5,7 +5,7 @@ from extensions import db, limiter, migrate, redis_client
 from routes import register_blueprints
 from services.cache_service import load_authorized_ips
 import stripe
-from datetime import datetime
+from datetime import datetime, timezone
 
 def create_app():
     """Application factory"""
