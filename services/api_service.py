@@ -1,38 +1,54 @@
 # services/api_service.py
 import requests
 import os
-import time
 import json
 from config import Config
 
 def fetch_player_data(platform, username):
-    """Fetch player data from API with improved error handling"""
+    """Fetch player data from API"""
     api_key = Config.API_KEY
     if not api_key:
         return None, 'API_KEY not configured', 500
     
-    raw_username = username
+    # ============================================
+    # DEBUG: Log exactly what we're sending
+    # ============================================
+    print("="*60)
+    print("🔍 API REQUEST DEBUG")
+    print("="*60)
+    print(f"Platform: {platform}")
+    print(f"Username: {username}")
     
-    # Validate platform
-    valid_platforms = ['epic', 'steam', 'psn', 'xbox', 'switch']
-    if platform not in valid_platforms:
-        return None, f'Invalid platform: {platform}', 422
+    # Build the URL with params
+    url = "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions"
+    params = {
+        "platform": platform,
+        "username": username
+    }
+    headers = {
+        "X-API-Key": api_key,
+        "API-Snapshot-Version": "6",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    
+    print(f"URL: {url}")
+    print(f"Params: {params}")
+    print(f"Headers: {headers}")
+    print("="*60)
     
     try:
         response = requests.get(
-            "https://api.parse.bot/scraper/d0dcf8e8-3a72-4b21-bffb-8fa735257835/get_player_sessions",
-            headers={
-                "X-API-Key": api_key,
-                "API-Snapshot-Version": "6",
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            },
-            params={
-                "platform": platform,
-                "username": raw_username
-            },
+            url,
+            headers=headers,
+            params=params,
             timeout=30
         )
+        
+        print(f"Response Status: {response.status_code}")
+        print(f"Response Headers: {dict(response.headers)}")
+        print(f"Response Body (first 500 chars): {response.text[:500]}")
+        print("="*60)
         
         # Handle response
         if response.status_code == 200:
@@ -41,27 +57,12 @@ def fetch_player_data(platform, username):
                 if 'items' in data:
                     return data, None, 200
                 else:
-                    return None, 'Invalid response format', 422
+                    return None, 'No items in response', 422
             except json.JSONDecodeError:
                 return None, 'Invalid JSON response', 502
-                
-        elif response.status_code == 422:
-            return None, f'Player not found on {platform}', 422
-            
-        elif response.status_code == 429:
-            return None, 'Rate limit exceeded', 429
-            
-        elif response.status_code in [502, 503, 504]:
-            return None, f'API server error: {response.status_code}', response.status_code
-            
         else:
             return None, f'API returned {response.status_code}', response.status_code
             
-    except requests.exceptions.Timeout:
-        return None, 'Request timeout', 408
-        
-    except requests.exceptions.ConnectionError:
-        return None, 'Connection error', 503
-        
     except Exception as e:
+        print(f"Exception: {e}")
         return None, str(e), 500
