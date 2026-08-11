@@ -5,6 +5,15 @@ from datetime import datetime, timezone
 from difflib import get_close_matches
 import re
 
+def clean_username(username):
+    """Clean username for storage"""
+    if not username:
+        return ''
+    cleaned = username.lower()
+    cleaned = re.sub(r'^[_\-\s]+', '', cleaned)
+    cleaned = re.sub(r'[_\-\s]+$', '', cleaned)
+    return cleaned
+
 def record_username_search(platform, username, success):
     """Record a username search attempt"""
     try:
@@ -39,14 +48,39 @@ def record_username_search(platform, username, success):
         db.session.rollback()
         return False
 
-def clean_username(username):
-    """Clean username for storage"""
-    if not username:
-        return ''
-    cleaned = username.lower()
-    cleaned = re.sub(r'^[_\-\s]+', '', cleaned)
-    cleaned = re.sub(r'[_\-\s]+$', '', cleaned)
-    return cleaned
+def add_successful_username(platform, username):
+    """Manually add a successful username to the suggestions database"""
+    try:
+        cleaned = clean_username(username)
+        print(f"📝 Adding successful username: {platform}/{cleaned}")
+        
+        suggestion = UsernameSuggestion.query.filter_by(
+            platform=platform,
+            username=cleaned
+        ).first()
+        
+        if not suggestion:
+            suggestion = UsernameSuggestion(
+                platform=platform,
+                username=cleaned,
+                display_name=username,
+                search_count=1,
+                success_count=1
+            )
+            db.session.add(suggestion)
+        else:
+            suggestion.search_count += 1
+            suggestion.success_count += 1
+            suggestion.display_name = username
+            suggestion.last_searched = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        print(f"✅ Added/updated: {suggestion.display_name}")
+        return suggestion
+    except Exception as e:
+        print(f"❌ Error adding successful username: {e}")
+        db.session.rollback()
+        return None
 
 def get_suggestions(platform, username, limit=5, min_confidence=0.5):
     """Get username suggestions based on fuzzy matching"""
