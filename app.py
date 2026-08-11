@@ -6,6 +6,8 @@ from routes import register_blueprints
 from services.cache_service import load_authorized_ips
 import stripe
 from datetime import datetime, timezone
+import os
+from flask_session import Session
 
 def create_app():
     """Application factory"""
@@ -13,6 +15,12 @@ def create_app():
     
     # Load configuration
     app.config.from_object(Config)
+
+    session_dir = app.config.get('SESSION_FILE_DIR', './flask_session')
+    if not os.path.exists(session_dir):
+        os.makedirs(session_dir, mode=0o755, exist_ok=True)
+    
+    Session(app)
     
     # Initialize extensions
     db.init_app(app)
