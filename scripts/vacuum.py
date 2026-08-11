@@ -11,8 +11,13 @@ from sqlalchemy import text
 def vacuum_database():
     with app.app_context():
         print("Running VACUUM ANALYZE...")
-        db.session.execute(text("VACUUM ANALYZE"))
-        db.session.commit()
+        
+        # Use the engine directly with autocommit
+        with db.engine.connect() as conn:
+            # Enable autocommit mode for VACUUM
+            conn.execution_options(isolation_level="AUTOCOMMIT")
+            conn.execute(text("VACUUM ANALYZE"))
+            
         print("VACUUM complete!")
 
 if __name__ == "__main__":
