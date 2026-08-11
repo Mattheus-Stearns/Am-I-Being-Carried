@@ -24,9 +24,23 @@ def get_cached_data(platform, username):
     ).first()
     
     if profile:
-        time_since_update = datetime.now(timezone.utc) - profile.updated_at
+        # ============================================
+        # FIX: Use timezone-aware datetime for comparison
+        # ============================================
+        # Get current UTC time (aware)
+        now = datetime.now(timezone.utc)
+        
+        # Ensure updated_at is timezone-aware
+        if profile.updated_at.tzinfo is None:
+            updated_at = profile.updated_at.replace(tzinfo=timezone.utc)
+        else:
+            updated_at = profile.updated_at
+        
+        time_since_update = now - updated_at
+        
         if time_since_update < timedelta(hours=24):
             return profile.data
+    
     
     return None
 
