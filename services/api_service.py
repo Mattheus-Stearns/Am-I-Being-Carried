@@ -11,8 +11,7 @@ def fetch_player_data(platform, username):
     if not api_key:
         return None, 'API_KEY not configured', 500
     
-    import urllib.parse
-    encoded_username = urllib.parse.quote(username)
+    raw_username = username
     
     # Validate platform
     valid_platforms = ['epic', 'steam', 'psn', 'xbox', 'switch']
@@ -30,7 +29,7 @@ def fetch_player_data(platform, username):
             },
             params={
                 "platform": platform,
-                "username": encoded_username
+                "username": raw_username
             },
             timeout=30
         )
