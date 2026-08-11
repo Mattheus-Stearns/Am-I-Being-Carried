@@ -52,19 +52,21 @@ def save_cached_data(platform, username, data):
         username=username
     ).first()
     
+    now = datetime.now(timezone.utc)
+    
     if profile:
         profile.data = data
-        profile.updated_at = datetime.now(timezone.utc)
-        profile.last_accessed = datetime.now(timezone.utc)
+        profile.updated_at = now
+        profile.last_accessed = now
         profile.api_call_count += 1
     else:
         profile = PlayerProfile(
             platform=platform,
             username=username,
             data=data,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
-            last_accessed=datetime.now(timezone.utc)
+            created_at=now,
+            updated_at=now,
+            last_accessed=now
         )
         db.session.add(profile)
     

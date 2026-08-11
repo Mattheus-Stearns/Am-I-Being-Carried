@@ -1,7 +1,9 @@
 # models.py
-from extensions import db
 from datetime import datetime, timezone
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSON
+
+db = SQLAlchemy()
 
 class PlayerProfile(db.Model):
     __tablename__ = 'player_profiles'
@@ -9,9 +11,9 @@ class PlayerProfile(db.Model):
     platform = db.Column(db.String(50))
     username = db.Column(db.String(100))
     data = db.Column(JSON)
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
-    last_accessed = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_accessed = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     api_call_count = db.Column(db.Integer, default=0)
     session_id = db.Column(db.String(255))
 
@@ -23,7 +25,7 @@ class APICallLog(db.Model):
     success = db.Column(db.Boolean, default=True)
     response_code = db.Column(db.Integer)
     error_message = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     response_size = db.Column(db.Integer)
     ip_address = db.Column(db.String(45))
     region = db.Column(db.String(10))
@@ -39,7 +41,7 @@ class Feedback(db.Model):
     user_agent = db.Column(db.String(255))
     ip_address = db.Column(db.String(45))
     is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Donation(db.Model):
     __tablename__ = 'donations'
@@ -52,6 +54,6 @@ class Donation(db.Model):
     stripe_payment_id = db.Column(db.String(255))
     stripe_customer_id = db.Column(db.String(255))
     status = db.Column(db.String(50), default='pending')
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     is_anonymous = db.Column(db.Boolean, default=False)
     show_on_wall = db.Column(db.Boolean, default=False)
