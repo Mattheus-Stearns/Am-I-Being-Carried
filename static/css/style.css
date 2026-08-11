@@ -222,3 +222,30 @@ input::-webkit-contacts-auto-fill-button {
         opacity: 1;
     }
 }
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 5px 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.timeline-time {
+    min-width: 60px;
+    font-weight: bold;
+    color: #6c757d;
+}
+
+.timeline-content {
+    flex: 1;
+}
+
+.timeline-item:hover {
+    background: #e9ecef;
+}

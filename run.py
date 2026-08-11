@@ -19,6 +19,7 @@ if __name__ == "__main__":
         print("  analytics topusers [--days N] [--limit N]")
         print("  analyze_failures")
         print("  cleanup [--days N] [--dry-run]")
+        print("  cleanup_replays")
         print("  check_db")
         print("  monitor")
         print("  size_alert")
@@ -36,6 +37,9 @@ if __name__ == "__main__":
     elif script == "cleanup":
         from scripts.cleanup import cleanup
         cleanup()
+    elif script == "cleanup_replays":
+        from scripts.cleanup_replays import cleanup_old_files
+        cleanup_old_files()
     elif script == "check_db":
         from scripts.check_db import check_db_size
         check_db_size()

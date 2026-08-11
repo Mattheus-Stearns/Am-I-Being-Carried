@@ -95,6 +95,11 @@ def create_app():
         if not plural:
             plural = singular + 's'
         return singular if count == 1 else plural
+
+    @app.template_filter('basename')
+    def basename_filter(filepath):
+        """Get basename from filepath"""
+        return os.path.basename(filepath) if filepath else ''
     
     # Load authorized IPs
     with app.app_context():

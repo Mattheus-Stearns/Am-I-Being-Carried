@@ -1,14 +1,41 @@
-# requirements.txt
+# ============================================
+# Core Web Framework
+# ============================================
 Flask==3.0.0
 Flask-SQLAlchemy==3.0.0
 Flask-Migrate==4.0.0
 Flask-Limiter==3.0.0
 Flask-Session==0.6.0
-psycopg2-binary==2.9.0
+click==8.1.0
+
+# ============================================
+# Database & Caching
+# ============================================
+# Use psycopg2-binary to avoid compiling from source
+psycopg2-binary==2.9.12
 redis==5.0.0
-stripe==7.0.0
+
+# ============================================
+# HTTP & API Clients
+# ============================================
 requests==2.31.0
+
+# ============================================
+# Payments & Analytics
+# ============================================
+stripe==7.0.0
+geoip2==4.7.0
+
+# ============================================
+# Environment & Server
+# ============================================
 python-dotenv==1.0.0
 gunicorn==21.0.0
-geoip2==4.7.0
-click==8.1.0
+
+# ============================================
+# Data Science & Analysis (Replay Analyzer)
+# ============================================
+numpy>=1.22.0,<2.0.0
+pandas>=1.4.0,<2.0.0
+matplotlib>=3.5.0,<4.0.0
+sprocket-carball>=0.1.0
