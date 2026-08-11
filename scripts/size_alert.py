@@ -1,18 +1,23 @@
 #!/usr/bin/env python
-import sys
-import os
-from pathlib import Path
+"""
+Check database size and alert if it's getting too large
+"""
 
+import sys
+from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app import app, db
-from datetime import datetime
+from sqlalchemy import text
 
 def check_db_size():
+    """Check database size and alert if too large"""
     with app.app_context():
-        size_mb = db.session.execute(
-            "SELECT pg_database_size(current_database()) / 1024 / 1024"
-        ).scalar()
+        # Use text() for raw SQL
+        result = db.session.execute(
+            text("SELECT pg_database_size(current_database()) / 1024 / 1024")
+        )
+        size_mb = result.scalar()
         
         alerts = []
         
@@ -24,12 +29,11 @@ def check_db_size():
             alerts.append("INFO: Database size exceeded 100 MB")
         
         if alerts:
-            print(f"\nDatabase Size Alert: {size_mb:.2f} MB")
+            print(f"\n📊 Database Size Alert: {size_mb:.2f} MB")
             for alert in alerts:
                 print(f"  {alert}")
-            
-            # Send email or log alert
-            # You could add email notification here
+        else:
+            print(f"\n✅ Database size is healthy: {size_mb:.2f} MB")
             
         return size_mb
 
