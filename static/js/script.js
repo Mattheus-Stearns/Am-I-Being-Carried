@@ -54,9 +54,14 @@ function showError(message, suggestion = null, suggestionUsername = null) {
         const suggestionUsernameEl = document.getElementById('suggestionUsername');
         
         if (suggestion && suggestionUsername) {
+            // Show "Did you mean?" button
             suggestionText.textContent = suggestion;
             suggestionUsernameEl.textContent = suggestionUsername;
             suggestionButton.style.display = 'inline-block';
+        } else if (suggestion) {
+            // Show just the text suggestion without a button
+            suggestionText.textContent = suggestion;
+            suggestionButton.style.display = 'none';
         } else {
             suggestionText.textContent = '';
             suggestionButton.style.display = 'none';
@@ -142,6 +147,13 @@ function selectPlatform(button) {
         selectedPlatformInput.value = platformId;
     }
     
+    // Update platform status
+    const statusEl = document.getElementById('platformStatus');
+    if (statusEl) {
+        statusEl.textContent = `Selected platform: ${platformId.toUpperCase()}`;
+        statusEl.className = 'text-success';
+    }
+    
     console.log('Selected platform:', platformId);
 }
 
@@ -196,7 +208,7 @@ async function submitApiForm(formId) {
     console.log('Form data with force_refresh:', data);
     
     try {
-        // First, clear the session to force a fresh request
+        // Clear the session
         console.log('Clearing session...');
         await fetch('/api/clear_session', {
             method: 'POST',
@@ -206,7 +218,7 @@ async function submitApiForm(formId) {
         });
         console.log('Session cleared');
         
-        // Then make the API query
+        // Make the API query
         console.log('Making API query to /api/query...');
         const response = await fetch('/api/query', {
             method: 'POST',
@@ -226,14 +238,18 @@ async function submitApiForm(formId) {
             let suggestionText = null;
             let suggestionUsername = null;
             
+            // Handle different error types
             if (result.error_code === 'PLAYER_NOT_FOUND' && result.suggestion) {
                 errorMessage = result.message;
-                suggestionText = `Did you mean "${result.suggestion.username}"? (Found ${result.suggestion.success_count} successful searches)`;
+                suggestionText = `Did you mean "${result.suggestion.username}"? (Found ${result.suggestion.search_count} successful searches)`;
                 suggestionUsername = result.suggestion.username;
-            } else if (result.suggestion) {
+            } else if (result.suggestion && typeof result.suggestion === 'object') {
                 errorMessage = result.message;
                 suggestionText = `Try searching for "${result.suggestion.username}" instead?`;
                 suggestionUsername = result.suggestion.username;
+            } else if (result.suggestion && typeof result.suggestion === 'string') {
+                // Simple string suggestion (no button)
+                suggestionText = result.suggestion;
             }
             
             showError(errorMessage, suggestionText, suggestionUsername);
@@ -623,14 +639,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Suggestion button click handler
-    document.getElementById('suggestionButton').addEventListener('click', function() {
-        const username = document.getElementById('suggestionUsername').textContent;
-        if (username) {
-            document.getElementById('username').value = username;
-            submitApiForm('apiForm');
-        }
-    });
+    // --- Suggestion button click handler ---
+    const suggestionButton = document.getElementById('suggestionButton');
+    if (suggestionButton) {
+        suggestionButton.addEventListener('click', function() {
+            const username = document.getElementById('suggestionUsername').textContent;
+            if (username) {
+                document.getElementById('username').value = username;
+                hideError();
+                submitApiForm('apiForm');
+            }
+        });
+        console.log('Suggestion button initialized');
+    }
     
     // --- Handle Enter key on username field ---
     const usernameField = document.getElementById('username');

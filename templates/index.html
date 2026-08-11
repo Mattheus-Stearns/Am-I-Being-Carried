@@ -14,8 +14,7 @@
                     <input type="text" style="display:none">
                     <input type="password" style="display:none">
 
-
-                   <div class="mb-3">
+                    <div class="mb-3">
                         <label class="form-label fw-bold">Select a Platform:</label>
                         <div class="row g-2" id="platformButtonGroup">
                             <div class="col-6 col-md-3">
@@ -48,11 +47,22 @@
                         <small class="text-muted" id="platformStatus">Select one platform to search</small>
                     </div>
                     
-                    <!-- Add this near the search form -->
+                    <!-- ============================================ -->
+                    <!-- SINGLE ERROR ALERT - FIXED -->
+                    <!-- ============================================ -->
                     <div id="errorAlert" class="alert alert-danger" style="display: none;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span id="errorMessage"></span>
-                        <div id="errorSuggestion" class="text-muted small mt-1"></div>
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
+                            <div>
+                                <span id="errorMessage" class="fw-bold"></span>
+                                <div id="errorSuggestion" class="mt-2">
+                                    <span id="suggestionText" class="text-muted"></span>
+                                    <button id="suggestionButton" class="btn btn-sm btn-outline-primary mt-1" style="display: none;">
+                                        <i class="fas fa-search"></i> Search for "<span id="suggestionUsername"></span>"
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Username Field -->
@@ -62,20 +72,10 @@
                             placeholder="Enter username" required>
                     </div>
 
-                    <div id="errorAlert" class="alert alert-danger" style="display: none;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span id="errorMessage"></span>
-                        <div id="errorSuggestion" class="mt-2">
-                            <span class="text-muted" id="suggestionText"></span>
-                            <button id="suggestionButton" class="btn btn-sm btn-outline-primary mt-1" style="display: none;">
-                                <i class="fas fa-search"></i> Search for "<span id="suggestionUsername"></span>"
-                            </button>
-                        </div>
-                    </div>
-
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-play"></i> Search
                     </button>
+                    
                     <!-- Check if we have session data to show recent search -->
                     {% if session.get('api_data') %}
                     <div class="mt-3">
