@@ -52,7 +52,7 @@ def create_app():
             if 'Z' in date_string:
                 date_string = date_string.replace('Z', '+00:00')
             date_obj = datetime.fromisoformat(date_string)
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             diff = now - date_obj
             
             seconds = diff.total_seconds()
