@@ -1,4 +1,5 @@
-# routes/replay.py
+# routes/replay.py - Updated with proper analyzer integration
+
 import os
 import uuid
 import shutil
@@ -10,21 +11,21 @@ from werkzeug.utils import secure_filename
 from . import main_bp
 import traceback
 
-# Try to import the replay analyzer
+# Import the actual replay analyzer functions
 try:
-    from replay_analyzer import parse_replay, generate_graphs, create_dataframe
+    from replay_analyzer.parse import parse_replay_to_dict
+    from replay_analyzer.dataframe import build_telemetry_dataframe
+    from replay_analyzer.graph import (
+        plot_player_speeds,
+        plot_boost_usage,
+        plot_combined_candlesticks,
+        calculate_advanced_boost_stats
+    )
     REPLAY_ANALYZER_AVAILABLE = True
     print("✅ Replay analyzer loaded successfully")
 except ImportError as e:
-    print(f"⚠️ Replay analyzer not available: {e}")
+    print(f"⚠️ Replay analyzer import error: {e}")
     REPLAY_ANALYZER_AVAILABLE = False
-    # Define placeholder functions
-    def parse_replay(filepath):
-        return simulate_replay_analysis(filepath)
-    def generate_graphs(data):
-        return None
-    def create_dataframe(data):
-        return None
 
 # Configuration
 UPLOAD_FOLDER = 'uploads/replays'
@@ -37,6 +38,38 @@ os.makedirs(ANALYSIS_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def parse_replay_date(replay_data):
+    """
+    Extract and parse the replay date from the properties section.
+    From replay_analyzer/app.py
+    """
+    properties = replay_data.get("properties", {})
+    date_str = properties.get("Date", "")
+    
+    if not date_str:
+        print("⚠️ No date found in replay data")
+        return datetime.now()
+    
+    print(f"📅 Raw date string: {date_str}")
+    
+    # The date format appears to be: "2026-07-29 04-31-41"
+    parts = date_str.split()
+    if len(parts) == 2:
+        date_part = parts[0]
+        time_part = parts[1]
+        # Convert time part from "04-31-41" to "04:31:41"
+        time_part_fixed = time_part.replace('-', ':')
+        date_str_fixed = f"{date_part} {time_part_fixed}"
+    else:
+        date_str_fixed = date_str
+    
+    try:
+        dt = datetime.strptime(date_str_fixed, "%Y-%m-%d %H:%M:%S")
+        return dt
+    except ValueError as e:
+        print(f"⚠️ Error parsing date: {e}")
+        return datetime.now()
 
 def simulate_replay_analysis(filepath):
     """Simulate replay analysis for testing when parser is unavailable"""
@@ -119,78 +152,130 @@ def simulate_replay_analysis(filepath):
     return result
 
 def analyze_replay_file(filepath, unique_id, original_filename):
-    """Analyze a replay file using your analyzer"""
-    print(f"🔍 Starting replay analysis for: {original_filename} (ID: {unique_id})")
-    print(f"📁 File path: {filepath}")
-    print(f"📁 File exists: {os.path.exists(filepath)}")
-    print(f"📁 File size: {os.path.getsize(filepath) if os.path.exists(filepath) else 'N/A'} bytes")
+    """Analyze a replay file using your rrrocket parser and generate graphs"""
+    print(f"🔍 Starting replay analysis for: {original_filename}")
     
     generated_files = []
     
     try:
-        # Create analysis directory for this replay
+        # Create analysis directory
         analysis_dir = os.path.join(ANALYSIS_FOLDER, unique_id)
         os.makedirs(analysis_dir, exist_ok=True)
         print(f"📁 Analysis directory: {analysis_dir}")
         
-        # Check if the replay analyzer is available
-        print(f"📊 REPLAY_ANALYZER_AVAILABLE: {REPLAY_ANALYZER_AVAILABLE}")
+        if not REPLAY_ANALYZER_AVAILABLE:
+            print("⚠️ Replay analyzer not available, using simulation")
+            return simulate_replay_analysis(filepath), generated_files
         
-        # Parse the replay
-        print("🔄 Calling parse_replay...")
-        result = parse_replay(filepath)
-        print(f"📊 parse_replay returned: {type(result)}")
+        # Step 1: Parse the replay using rrrocket
+        print("🔄 Calling parse_replay_to_dict...")
+        replay_data = parse_replay_to_dict(filepath)
         
-        # Debug the result
-        if isinstance(result, dict):
-            print(f"📊 Result keys: {list(result.keys())}")
-            if 'players' in result:
-                print(f"📊 Players count: {len(result.get('players', []))}")
-            if 'events' in result:
-                print(f"📊 Events count: {len(result.get('events', []))}")
-        else:
-            print(f"⚠️ Result is not a dict: {result}")
+        if replay_data is None:
+            print("❌ Parsing failed, using simulation")
+            return simulate_replay_analysis(filepath), generated_files
         
-        # If result is a string (error), convert to dict
-        if isinstance(result, str):
-            print(f"⚠️ parse_replay returned string: {result[:100]}...")
-            result = {
-                'success': False,
-                'file_name': original_filename,
-                'game_mode': 'Error',
-                'duration': '0:00',
-                'players': [],
-                'events': [],
-                'scoreboard': {'blue': 0, 'orange': 0},
-                'error': result
-            }
+        print(f"📊 Parse successful!")
         
-        # Save analysis text
-        text_file = os.path.join(analysis_dir, 'analysis.txt')
-        print(f"💾 Saving analysis to: {text_file}")
-        with open(text_file, 'w') as f:
-            f.write(f"Replay Analysis: {original_filename}\n")
-            f.write(f"Date: {datetime.now().isoformat()}\n")
-            f.write("="*50 + "\n\n")
-            f.write(json.dumps(result, indent=2, default=str))
-        generated_files.append(text_file)
-        print(f"✅ Analysis saved to {text_file}")
+        # Save the parsed data as JSON
+        json_file = os.path.join(analysis_dir, 'replay_data.json')
+        with open(json_file, 'w') as f:
+            json.dump(replay_data, f, indent=2, default=str)
+        generated_files.append(json_file)
+        print(f"💾 Saved replay data to: {json_file}")
         
-        # Generate graphs if available
-        if REPLAY_ANALYZER_AVAILABLE and generate_graphs:
-            print("🔄 Generating graphs...")
-            try:
-                graph_data = generate_graphs(result)
-                if graph_data and isinstance(graph_data, dict):
-                    for key, value in graph_data.items():
-                        if isinstance(value, str) and value.endswith('.png'):
-                            generated_files.append(value)
-                            print(f"✅ Graph saved: {value}")
-            except Exception as e:
-                print(f"⚠️ Graph generation failed: {e}")
-                traceback.print_exc()
-        else:
-            print("ℹ️ Graph generation skipped (not available)")
+        # Step 2: Get the replay date
+        replay_date_obj = parse_replay_date(replay_data)
+        replay_date_str = replay_date_obj.strftime('%Y-%m-%d_%H-%M-%S')
+        print(f"📅 Replay date: {replay_date_str}")
+        
+        # Step 3: Build telemetry dataframe
+        print("🔄 Building telemetry dataframe...")
+        try:
+            # Note: build_telemetry_dataframe expects the parsed data directly
+            df_telemetry = build_telemetry_dataframe(replay_data, replay_date_str)
+            
+            if df_telemetry is not None and not df_telemetry.empty:
+                print(f"📊 Telemetry dataframe: {len(df_telemetry)} rows")
+                
+                # Save dataframe as CSV
+                csv_file = os.path.join(analysis_dir, 'telemetry.csv')
+                df_telemetry.to_csv(csv_file, index=False)
+                generated_files.append(csv_file)
+                print(f"💾 Saved telemetry to: {csv_file}")
+                
+                # Step 4: Generate graphs
+                print("🔄 Generating graphs...")
+                
+                # Plot player speeds
+                try:
+                    plot_player_speeds(df_telemetry, replay_date_str)
+                    # The plot function saves the file in the current directory
+                    # We need to find and move it
+                    speed_file = f'player_speeds_{replay_date_str}.png'
+                    if os.path.exists(speed_file):
+                        new_path = os.path.join(analysis_dir, speed_file)
+                        shutil.move(speed_file, new_path)
+                        generated_files.append(new_path)
+                        print(f"✅ Speed graph saved: {new_path}")
+                except Exception as e:
+                    print(f"⚠️ Speed graph failed: {e}")
+                
+                # Plot boost usage
+                try:
+                    plot_boost_usage(df_telemetry, replay_date_str)
+                    boost_file = f'boost_usage_{replay_date_str}.png'
+                    if os.path.exists(boost_file):
+                        new_path = os.path.join(analysis_dir, boost_file)
+                        shutil.move(boost_file, new_path)
+                        generated_files.append(new_path)
+                        print(f"✅ Boost graph saved: {new_path}")
+                except Exception as e:
+                    print(f"⚠️ Boost graph failed: {e}")
+                
+                # Calculate advanced boost stats
+                try:
+                    boost_stats = calculate_advanced_boost_stats(df_telemetry)
+                    if boost_stats:
+                        stats_file = os.path.join(analysis_dir, 'boost_stats.txt')
+                        with open(stats_file, 'w') as f:
+                            f.write(str(boost_stats))
+                        generated_files.append(stats_file)
+                        print(f"✅ Boost stats saved: {stats_file}")
+                except Exception as e:
+                    print(f"⚠️ Boost stats calculation failed: {e}")
+                
+            else:
+                print("⚠️ Telemetry dataframe is empty or None")
+        except Exception as e:
+            print(f"⚠️ Dataframe building failed: {e}")
+            traceback.print_exc()
+        
+        # Step 5: Build player stats from parsed data
+        player_stats = []
+        if 'players' in replay_data:
+            for player in replay_data.get('players', []):
+                player_stats.append({
+                    'name': player.get('name', 'Unknown'),
+                    'goals': player.get('goals', 0),
+                    'assists': player.get('assists', 0),
+                    'saves': player.get('saves', 0),
+                    'shots': player.get('shots', 0),
+                    'score': player.get('score', 0),
+                    'mvp': player.get('mvp', False)
+                })
+        
+        # Build result dictionary
+        result = {
+            'success': True,
+            'file_name': original_filename,
+            'game_mode': replay_data.get('game_mode', 'Soccar'),
+            'duration': replay_data.get('duration', '0:00'),
+            'players': player_stats,
+            'events': replay_data.get('events', [])[:50],
+            'scoreboard': replay_data.get('scoreboard', {'blue': 0, 'orange': 0}),
+            'analysis_files': generated_files
+        }
         
         print(f"✅ Analysis complete! Generated {len(generated_files)} files")
         return result, generated_files
@@ -200,162 +285,3 @@ def analyze_replay_file(filepath, unique_id, original_filename):
         traceback.print_exc()
         print("🔄 Falling back to simulated analysis...")
         return simulate_replay_analysis(filepath), generated_files
-
-def cleanup_files(filepath, analysis_files=None):
-    """Delete replay file and optional analysis files"""
-    try:
-        if os.path.exists(filepath):
-            os.remove(filepath)
-            print(f"🗑️ Deleted replay file: {filepath}")
-        
-        if analysis_files:
-            for file_path in analysis_files:
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                    print(f"🗑️ Deleted analysis file: {file_path}")
-        
-        return True
-    except Exception as e:
-        print(f"⚠️ Error cleaning up files: {e}")
-        return False
-
-@main_bp.route('/replay/upload', methods=['GET', 'POST'])
-def upload_replay():
-    """Upload and analyze a Rocket League replay file"""
-    print("="*60)
-    print("🔄 REPLAY UPLOAD REQUEST")
-    print("="*60)
-    print(f"Method: {request.method}")
-    
-    if not REPLAY_ANALYZER_AVAILABLE:
-        print("⚠️ Replay analyzer not available")
-        flash('Replay analyzer is not available. Please check the installation.', 'error')
-        return redirect(url_for('main.index'))
-    
-    if request.method == 'GET':
-        print("📄 Rendering upload form")
-        return render_template('upload_replay.html')
-    
-    # Handle file upload
-    print("📤 Processing file upload...")
-    if 'replay_file' not in request.files:
-        print("❌ No file in request")
-        flash('No file selected', 'error')
-        return redirect(request.url)
-    
-    file = request.files['replay_file']
-    print(f"📁 File received: {file.filename}")
-    
-    if file.filename == '':
-        print("❌ Empty filename")
-        flash('No file selected', 'error')
-        return redirect(request.url)
-    
-    if file and allowed_file(file.filename):
-        # Generate unique filename
-        filename = secure_filename(file.filename)
-        unique_id = str(uuid.uuid4())
-        unique_filename = f"{unique_id}_{filename}"
-        filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
-        
-        print(f"💾 Saving file to: {filepath}")
-        file.save(filepath)
-        print(f"✅ Replay saved: {filepath}")
-        print(f"📁 File size: {os.path.getsize(filepath)} bytes")
-        
-        analysis_files = []
-        
-        try:
-            # Parse the replay using your analyzer
-            replay_data, generated_files = analyze_replay_file(filepath, unique_id, filename)
-            analysis_files.extend(generated_files)
-            
-            print(f"📊 Replay data: {len(replay_data.get('players', []))} players, {len(replay_data.get('events', []))} events")
-            
-            # Store replay data in session
-            session['replay_result'] = {
-                'id': unique_id,
-                'filename': filename,
-                'game_mode': replay_data.get('game_mode', 'Unknown'),
-                'duration': replay_data.get('duration', 'Unknown'),
-                'players': replay_data.get('players', []),
-                'events': replay_data.get('events', [])[:50],
-                'scoreboard': replay_data.get('scoreboard', {}),
-                'analysis_files': generated_files
-            }
-            
-            # Delete the original replay file after analysis
-            cleanup_files(filepath)
-            
-            print("✅ Replay analysis complete, rendering results")
-            return render_template('replay_analysis.html', 
-                                 replay_data=replay_data,
-                                 analysis_files=generated_files,
-                                 replay_id=unique_id)
-            
-        except Exception as e:
-            print(f"❌ Error analyzing replay: {e}")
-            traceback.print_exc()
-            cleanup_files(filepath, analysis_files)
-            flash(f'Error analyzing replay: {str(e)}', 'error')
-            return redirect(request.url)
-    
-    print("❌ Invalid file type")
-    flash('Invalid file type. Please upload a .replay file.', 'error')
-    return redirect(request.url)
-
-@main_bp.route('/replay/download/<replay_id>/<filename>')
-def download_analysis_file(replay_id, filename):
-    """Download an analysis file"""
-    try:
-        # Security: Prevent directory traversal
-        if '..' in filename or '/' in filename:
-            return "Invalid filename", 400
-        
-        file_path = os.path.join(ANALYSIS_FOLDER, replay_id, filename)
-        
-        print(f"📥 Download requested: {file_path}")
-        
-        if not os.path.exists(file_path):
-            print(f"❌ File not found: {file_path}")
-            return "File not found", 404
-        
-        # Determine content type
-        if filename.endswith('.png'):
-            mimetype = 'image/png'
-        elif filename.endswith('.txt'):
-            mimetype = 'text/plain'
-        else:
-            mimetype = 'application/octet-stream'
-        
-        print(f"✅ Serving file: {file_path} ({mimetype})")
-        return send_file(file_path, mimetype=mimetype, as_attachment=False)
-        
-    except Exception as e:
-        print(f"❌ Download error: {e}")
-        import traceback
-        traceback.print_exc()
-        return str(e), 500
-
-@main_bp.route('/replay/delete/<replay_id>', methods=['POST'])
-def delete_replay_analysis(replay_id):
-    """Delete replay analysis files"""
-    try:
-        analysis_dir = os.path.join(ANALYSIS_FOLDER, replay_id)
-        if os.path.exists(analysis_dir):
-            shutil.rmtree(analysis_dir)
-            print(f"🗑️ Deleted analysis directory: {analysis_dir}")
-        
-        if 'replay_result' in session:
-            session.pop('replay_result', None)
-        
-        return jsonify({
-            'success': True,
-            'message': 'Replay data deleted successfully'
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500

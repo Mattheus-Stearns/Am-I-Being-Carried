@@ -4,7 +4,6 @@ import sys
 import io
 from parse import parse_replay_to_dict
 from dataframe import build_telemetry_dataframe
-import carball
 import json
 from graph import plot_player_speeds, plot_boost_usage, calculate_advanced_boost_stats
 from datetime import datetime

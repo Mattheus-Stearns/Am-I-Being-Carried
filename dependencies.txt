@@ -6,12 +6,11 @@ Flask-SQLAlchemy==3.0.0
 Flask-Migrate==4.0.0
 Flask-Limiter==3.0.0
 Flask-Session==0.6.0
-click==8.1.0
+click>=8.1.3
 
 # ============================================
 # Database & Caching
 # ============================================
-# Use psycopg2-binary to avoid compiling from source
 psycopg2-binary==2.9.12
 redis==5.0.0
 
@@ -33,9 +32,21 @@ python-dotenv==1.0.0
 gunicorn==21.0.0
 
 # ============================================
-# Data Science & Analysis (Replay Analyzer)
+# Rocket League Replay Analysis
 # ============================================
-numpy>=1.22.0,<2.0.0
-pandas>=1.4.0,<2.0.0
-matplotlib>=3.5.0,<4.0.0
-sprocket-carball>=0.1.0
+# For parsing replay files (rrrocket binary needs to be in the right folder)
+
+# Data Science & Visualization
+numpy>=1.24.0
+pandas>=1.0
+matplotlib>=3.7.0
+
+# Financial plotting for candlestick charts
+mplfinance>=0.12.7
+
+# ============================================
+# Optional: For better performance
+# ============================================
+# uvicorn==0.24.0
+# httpx==0.25.0
+# aiohttp==3.9.0
