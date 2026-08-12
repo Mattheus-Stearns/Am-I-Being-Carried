@@ -7,7 +7,7 @@ import os
 import mplfinance as mpf
 import pandas as pd
 
-os.path.exists("replay-analysis") or os.makedirs("replay-analysis")
+os.makedirs("replay-analysis", exist_ok=True)
 
 def plot_player_speeds(df_telemetry, replay_date):
     """
