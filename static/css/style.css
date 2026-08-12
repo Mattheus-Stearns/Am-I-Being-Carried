@@ -249,3 +249,55 @@ input::-webkit-contacts-auto-fill-button {
 .timeline-item:hover {
     background: #e9ecef;
 }
+/* Suggestion Button Styles */
+#suggestionButton {
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+#suggestionButton:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+/* Error Alert with Suggestion */
+#errorAlert .alert {
+    border-left: 4px solid #dc3545;
+    padding: 15px 20px;
+}
+
+#errorSuggestion {
+    background: #f8f9fa;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+#errorSuggestion .text-muted {
+    color: #495057 !important;
+    font-size: 0.95rem;
+}
+
+#suggestionButton {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 6px 16px;
+    font-size: 0.9rem;
+    border-radius: 20px;
+}
+
+#suggestionButton:hover {
+    background: #0069d9;
+    color: white;
+}
+
+#suggestionButton i {
+    margin-right: 5px;
+}
+
+/* Make the error alert more visible */
+.alert-error {
+    border: 2px solid #dc3545;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.15);
+}
