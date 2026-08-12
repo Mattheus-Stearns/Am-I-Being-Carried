@@ -7,7 +7,8 @@ from pathlib import Path
 # Add parent directory to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app import app, db
+from extensions import db
+from app import app
 from models import Feedback
 
 def view_feedback():

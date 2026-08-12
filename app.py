@@ -1,7 +1,7 @@
 # app.py
 from flask import Flask
 from config import Config
-from extensions import db, limiter, migrate, redis_client
+from extensions import db, limiter, migrate
 from routes import register_blueprints
 from services.cache_service import load_authorized_ips
 import stripe

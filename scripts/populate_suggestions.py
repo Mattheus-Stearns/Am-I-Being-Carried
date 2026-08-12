@@ -7,7 +7,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app import app, db
+from extensions import db
+from app import app
 from models import PlayerProfile, APICallLog, UsernameSuggestion
 from services.suggestion_service import add_successful_username
 

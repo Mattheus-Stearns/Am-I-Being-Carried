@@ -5,7 +5,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app import app, db
+from extensions import db
+from app import app
 from sqlalchemy import text
 
 def vacuum_database():

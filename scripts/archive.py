@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-from app import app, db
+from extensions import db
+from app import app
 from datetime import datetime, timedelta, timezone
 import json
 import os
