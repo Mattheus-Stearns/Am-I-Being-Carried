@@ -1,19 +1,19 @@
 # ============================================
-# Core Web Framework - Compatible Versions
+# Core Web Framework - Stable Versions
 # ============================================
-Flask==2.3.0
-Flask-SQLAlchemy==3.0.0
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
 SQLAlchemy==2.0.20
-Flask-Migrate==4.0.0
-Flask-Limiter==3.0.0
-Flask-Session==0.6.0
-click==8.1.0
+Flask-Migrate==4.0.5
+Flask-Limiter==3.5.0
+Flask-Session==0.5.0
+click==8.1.7
 
 # ============================================
 # Database & Caching
 # ============================================
-psycopg2-binary==2.9.0
-redis==5.0.0
+psycopg2-binary==2.9.9
+redis==5.0.1
 
 # ============================================
 # HTTP & API Clients
@@ -30,20 +30,12 @@ geoip2==4.7.0
 # Environment & Server
 # ============================================
 python-dotenv==1.0.0
-gunicorn==21.0.0
+gunicorn==21.2.0
 
 # ============================================
 # Rocket League Replay Analysis
 # ============================================
-# Data Science & Visualization - Compatible Versions
 numpy>=1.24.0,<2.0.0
 pandas>=1.5.0,<2.0.0
 matplotlib>=3.7.0,<4.0.0
 mplfinance>=0.12.7,<1.0.0
-
-# ============================================
-# Optional: For better performance
-# ============================================
-# uvicorn==0.24.0
-# httpx==0.25.0
-# aiohttp==3.9.0
