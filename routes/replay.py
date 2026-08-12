@@ -1,4 +1,4 @@
-# routes/replay.py - Updated with proper analyzer integration
+# routes/replay.py - Fixed with route decorators
 
 import os
 import uuid
@@ -151,6 +151,24 @@ def simulate_replay_analysis(filepath):
     print(f"📊 Simulated result: {len(result['players'])} players, {len(result['events'])} events")
     return result
 
+def cleanup_files(filepath, analysis_files=None):
+    """Delete replay file and optional analysis files"""
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            print(f"🗑️ Deleted replay file: {filepath}")
+        
+        if analysis_files:
+            for file_path in analysis_files:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"🗑️ Deleted analysis file: {file_path}")
+        
+        return True
+    except Exception as e:
+        print(f"⚠️ Error cleaning up files: {e}")
+        return False
+
 def analyze_replay_file(filepath, unique_id, original_filename):
     """Analyze a replay file using your rrrocket parser and generate graphs"""
     print(f"🔍 Starting replay analysis for: {original_filename}")
@@ -285,3 +303,145 @@ def analyze_replay_file(filepath, unique_id, original_filename):
         traceback.print_exc()
         print("🔄 Falling back to simulated analysis...")
         return simulate_replay_analysis(filepath), generated_files
+
+# ============================================
+# ROUTES
+# ============================================
+
+@main_bp.route('/replay/upload', methods=['GET', 'POST'])
+def upload_replay():
+    """Upload and analyze a Rocket League replay file"""
+    print("="*60)
+    print("🔄 REPLAY UPLOAD REQUEST")
+    print("="*60)
+    print(f"Method: {request.method}")
+    
+    if not REPLAY_ANALYZER_AVAILABLE:
+        print("⚠️ Replay analyzer not available")
+        flash('Replay analyzer is not available. Please check the installation.', 'error')
+        return redirect(url_for('main.index'))
+    
+    if request.method == 'GET':
+        print("📄 Rendering upload form")
+        return render_template('upload_replay.html')
+    
+    # Handle file upload
+    print("📤 Processing file upload...")
+    if 'replay_file' not in request.files:
+        print("❌ No file in request")
+        flash('No file selected', 'error')
+        return redirect(request.url)
+    
+    file = request.files['replay_file']
+    print(f"📁 File received: {file.filename}")
+    
+    if file.filename == '':
+        print("❌ Empty filename")
+        flash('No file selected', 'error')
+        return redirect(request.url)
+    
+    if file and allowed_file(file.filename):
+        # Generate unique filename
+        filename = secure_filename(file.filename)
+        unique_id = str(uuid.uuid4())
+        unique_filename = f"{unique_id}_{filename}"
+        filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+        
+        print(f"💾 Saving file to: {filepath}")
+        file.save(filepath)
+        print(f"✅ Replay saved: {filepath}")
+        print(f"📁 File size: {os.path.getsize(filepath)} bytes")
+        
+        analysis_files = []
+        
+        try:
+            # Parse the replay using your analyzer
+            replay_data, generated_files = analyze_replay_file(filepath, unique_id, filename)
+            analysis_files.extend(generated_files)
+            
+            print(f"📊 Replay data: {len(replay_data.get('players', []))} players, {len(replay_data.get('events', []))} events")
+            
+            # Store replay data in session
+            session['replay_result'] = {
+                'id': unique_id,
+                'filename': filename,
+                'game_mode': replay_data.get('game_mode', 'Unknown'),
+                'duration': replay_data.get('duration', 'Unknown'),
+                'players': replay_data.get('players', []),
+                'events': replay_data.get('events', [])[:50],
+                'scoreboard': replay_data.get('scoreboard', {}),
+                'analysis_files': generated_files
+            }
+            
+            # Delete the original replay file after analysis
+            cleanup_files(filepath)
+            
+            print("✅ Replay analysis complete, rendering results")
+            return render_template('replay_analysis.html', 
+                                 replay_data=replay_data,
+                                 analysis_files=generated_files,
+                                 replay_id=unique_id)
+            
+        except Exception as e:
+            print(f"❌ Error analyzing replay: {e}")
+            traceback.print_exc()
+            cleanup_files(filepath, analysis_files)
+            flash(f'Error analyzing replay: {str(e)}', 'error')
+            return redirect(request.url)
+    
+    print("❌ Invalid file type")
+    flash('Invalid file type. Please upload a .replay file.', 'error')
+    return redirect(request.url)
+
+@main_bp.route('/replay/download/<replay_id>/<filename>')
+def download_analysis_file(replay_id, filename):
+    """Download an analysis file"""
+    try:
+        # Security: Prevent directory traversal
+        if '..' in filename or '/' in filename:
+            return "Invalid filename", 400
+        
+        file_path = os.path.join(ANALYSIS_FOLDER, replay_id, filename)
+        
+        print(f"📥 Download requested: {file_path}")
+        
+        if not os.path.exists(file_path):
+            print(f"❌ File not found: {file_path}")
+            return "File not found", 404
+        
+        # Determine content type
+        if filename.endswith('.png'):
+            mimetype = 'image/png'
+        elif filename.endswith('.txt'):
+            mimetype = 'text/plain'
+        else:
+            mimetype = 'application/octet-stream'
+        
+        print(f"✅ Serving file: {file_path} ({mimetype})")
+        return send_file(file_path, mimetype=mimetype, as_attachment=False)
+        
+    except Exception as e:
+        print(f"❌ Download error: {e}")
+        import traceback
+        traceback.print_exc()
+        return str(e), 500
+
+@main_bp.route('/replay/delete/<replay_id>', methods=['POST'])
+def delete_replay_analysis(replay_id):
+    """Delete replay analysis files"""
+    try:
+        analysis_dir = os.path.join(ANALYSIS_FOLDER, replay_id)
+        if os.path.exists(analysis_dir):
+            shutil.rmtree(analysis_dir)
+            print(f"🗑️ Deleted analysis directory: {analysis_dir}")
+        
+        if 'replay_result' in session:
+            session.pop('replay_result', None)
+        
+        flash('Replay analysis deleted successfully.', 'success')
+        return redirect(url_for('main.upload_replay'))
+        
+    except Exception as e:
+        print(f"❌ Delete error: {e}")
+        flash(f'Error deleting replay analysis: {str(e)}', 'error')
+        return redirect(url_for('main.upload_replay'))
