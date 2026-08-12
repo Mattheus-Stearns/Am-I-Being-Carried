@@ -9,12 +9,15 @@
             <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                 <h4><i class="fas fa-chart-bar"></i> Replay Analysis</h4>
                 <div>
-                    <span class="badge bg-light text-dark">{{ replay_data.file_name }}</span>
-                    <span class="badge bg-light text-dark">{{ replay_data.game_mode }}</span>
-                    <span class="badge bg-light text-dark">{{ replay_data.duration }}</span>
+                    <span class="badge bg-light text-dark">{{ replay_data.file_name if replay_data else 'Unknown' }}</span>
+                    <span class="badge bg-light text-dark">{{ replay_data.game_mode if replay_data else 'Unknown' }}</span>
+                    <span class="badge bg-light text-dark">{{ replay_data.duration if replay_data else '0:00' }}</span>
                 </div>
             </div>
             <div class="card-body">
+                <!-- Check if replay data exists -->
+                {% if replay_data and replay_data.players %}
+                
                 <!-- Download/View Analysis Files -->
                 {% if analysis_files %}
                 <div class="alert alert-info">
@@ -32,9 +35,10 @@
                                         <i class="fas fa-file text-secondary fs-4 me-2"></i>
                                     {% endif %}
                                     <div class="small text-truncate">
-                                        <a href="{{ url_for('main.download_analysis_file', replay_id=replay_id, filename=file|basename) }}" 
+                                        {% set filename = file.split('/')[-1] if '/' in file else file.split('\\')[-1] %}
+                                        <a href="{{ url_for('main.download_analysis_file', replay_id=replay_id, filename=filename) }}" 
                                            target="_blank" class="text-decoration-none">
-                                            {{ file|basename }}
+                                            {{ filename }}
                                         </a>
                                     </div>
                                 </div>
@@ -50,10 +54,12 @@
                     {% for file in analysis_files %}
                         {% if file.endswith('.png') %}
                         <div class="mb-4">
-                            <h5>{{ file|basename|replace('.png', '')|replace('_', ' ')|title }}</h5>
-                            <img src="{{ url_for('main.download_analysis_file', replay_id=replay_id, filename=file|basename) }}" 
+                            {% set filename = file.split('/')[-1] if '/' in file else file.split('\\')[-1] %}
+                            <h5>{{ filename|replace('.png', '')|replace('_', ' ')|title }}</h5>
+                            <img src="{{ url_for('main.download_analysis_file', replay_id=replay_id, filename=filename) }}" 
                                  class="img-fluid rounded shadow-sm" 
-                                 alt="Analysis graph">
+                                 alt="Analysis graph"
+                                 onerror="this.style.display='none'">
                         </div>
                         {% endif %}
                     {% endfor %}
@@ -67,13 +73,13 @@
                             <div class="col-md-6">
                                 <div class="bg-primary bg-opacity-10 p-3 rounded text-center">
                                     <h6>Blue Team</h6>
-                                    <h2 class="text-primary">{{ replay_data.scoreboard.blue }}</h2>
+                                    <h2 class="text-primary">{{ replay_data.scoreboard.blue if replay_data.scoreboard else 0 }}</h2>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="bg-warning bg-opacity-10 p-3 rounded text-center">
                                     <h6>Orange Team</h6>
-                                    <h2 class="text-warning">{{ replay_data.scoreboard.orange }}</h2>
+                                    <h2 class="text-warning">{{ replay_data.scoreboard.orange if replay_data.scoreboard else 0 }}</h2>
                                 </div>
                             </div>
                         </div>
@@ -138,6 +144,26 @@
                         </div>
                     {% endfor %}
                 </div>
+                
+                {% else %}
+                <!-- No data available -->
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>No replay data available.</strong>
+                    <p class="mt-2">The replay analysis did not return any data. This could be because:</p>
+                    <ul>
+                        <li>The replay file is corrupted or invalid</li>
+                        <li>The replay parser is not properly installed</li>
+                        <li>There was an error during analysis</li>
+                    </ul>
+                    {% if replay_data and replay_data.error %}
+                    <div class="mt-2">
+                        <strong>Error details:</strong>
+                        <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.8rem;">{{ replay_data.error }}</pre>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
                 
                 <!-- Delete Button -->
                 <div class="mt-4">

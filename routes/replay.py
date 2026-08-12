@@ -303,3 +303,59 @@ def upload_replay():
     print("❌ Invalid file type")
     flash('Invalid file type. Please upload a .replay file.', 'error')
     return redirect(request.url)
+
+@main_bp.route('/replay/download/<replay_id>/<filename>')
+def download_analysis_file(replay_id, filename):
+    """Download an analysis file"""
+    try:
+        # Security: Prevent directory traversal
+        if '..' in filename or '/' in filename:
+            return "Invalid filename", 400
+        
+        file_path = os.path.join(ANALYSIS_FOLDER, replay_id, filename)
+        
+        print(f"📥 Download requested: {file_path}")
+        
+        if not os.path.exists(file_path):
+            print(f"❌ File not found: {file_path}")
+            return "File not found", 404
+        
+        # Determine content type
+        if filename.endswith('.png'):
+            mimetype = 'image/png'
+        elif filename.endswith('.txt'):
+            mimetype = 'text/plain'
+        else:
+            mimetype = 'application/octet-stream'
+        
+        print(f"✅ Serving file: {file_path} ({mimetype})")
+        return send_file(file_path, mimetype=mimetype, as_attachment=False)
+        
+    except Exception as e:
+        print(f"❌ Download error: {e}")
+        import traceback
+        traceback.print_exc()
+        return str(e), 500
+
+@main_bp.route('/replay/delete/<replay_id>', methods=['POST'])
+def delete_replay_analysis(replay_id):
+    """Delete replay analysis files"""
+    try:
+        analysis_dir = os.path.join(ANALYSIS_FOLDER, replay_id)
+        if os.path.exists(analysis_dir):
+            shutil.rmtree(analysis_dir)
+            print(f"🗑️ Deleted analysis directory: {analysis_dir}")
+        
+        if 'replay_result' in session:
+            session.pop('replay_result', None)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Replay data deleted successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
