@@ -217,15 +217,30 @@ def query_api():
                     
                     if status_code == 422:
                         # Invalid username/platform - don't retry
-                        error_info = get_user_friendly_error('PLAYER_NOT_FOUND', status_code, error, username, platform)
-                        log_api_call(platform, username, False, status_code, error)
+                        record_username_search(platform, username, False)
                         
-                        return jsonify({
+                        # Get "Did you mean?" suggestion
+                        suggestion = get_correction_suggestion(platform, username)
+                        
+                        response_data = {
                             'success': False,
-                            'message': error_info['message'],
-                            'suggestion': error_info.get('suggestion'),
                             'error_code': 'PLAYER_NOT_FOUND'
-                        }), 404
+                        }
+                        
+                        if suggestion:
+                            # ✅ Return suggestion as an object
+                            response_data['suggestion'] = {
+                                'username': str(suggestion.get('display_name', '')),
+                                'search_count': int(suggestion.get('search_count', 0)),
+                                'success_rate': f"{suggestion.get('success_count', 0)}/{suggestion.get('search_count', 1)}"
+                            }
+                            response_data['message'] = f'Player "{username}" not found. Did you mean "{suggestion["display_name"]}"?'
+                            print(f"✅ Added suggestion: {suggestion['display_name']}")
+                        else:
+                            # ✅ No suggestion found - give helpful message
+                            response_data['message'] = f'Player "{username}" not found on {platform}. Please check the spelling and platform.'
+                        
+                        return jsonify(response_data), 404
                     
                     elif status_code == 429:
                         # Rate limited - wait and retry
