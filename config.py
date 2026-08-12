@@ -25,3 +25,6 @@ class Config:
     
     # Authorized IPs
     AUTHORIZED_IPS = [ip.strip() for ip in os.getenv('AUTHORIZED_IPS', '').split(',') if ip.strip()]
+
+    # uploads ~ 100 MB
+    MAX_CONTENT_LENGTH = 100 * 1024 * 1024 
