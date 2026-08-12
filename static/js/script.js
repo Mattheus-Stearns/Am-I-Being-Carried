@@ -43,13 +43,12 @@ function hidePreloader() {
     }
 }
 
-// Show Error Function - Fixed
-function showError(message, suggestion = null, suggestionUsername = null) {
-    console.log('Showing error:', message, suggestion, suggestionUsername);
+function showError(message, suggestion = null, suggestionUsername = null, steamHelp = null, steamUrl = null) {
+    console.log('Showing error:', message);
+    
     const alert = document.getElementById('errorAlert');
     if (!alert) {
         console.error('Error alert not found!');
-        alert('Error: ' + message);
         return;
     }
     
@@ -59,32 +58,59 @@ function showError(message, suggestion = null, suggestionUsername = null) {
         errorMessageEl.textContent = message;
     }
     
-    // Handle suggestion
+    // Handle Steam-specific help
     const suggestionText = document.getElementById('suggestionText');
     const suggestionButton = document.getElementById('suggestionButton');
     const suggestionUsernameEl = document.getElementById('suggestionUsername');
+    const steamHelpContainer = document.getElementById('steamHelpContainer');
     
-    if (suggestion && suggestionUsername) {
-        // Show "Did you mean?" button
-        if (suggestionText) suggestionText.textContent = suggestion;
-        if (suggestionUsernameEl) suggestionUsernameEl.textContent = suggestionUsername;
-        if (suggestionButton) suggestionButton.style.display = 'inline-block';
-    } else if (suggestion) {
-        // Show just the text suggestion without a button
-        if (suggestionText) suggestionText.textContent = suggestion;
-        if (suggestionButton) suggestionButton.style.display = 'none';
-    } else {
+    if (steamHelp && steamUrl) {
+        // Show Steam help
+        if (steamHelpContainer) {
+            steamHelpContainer.innerHTML = steamHelp;
+            steamHelpContainer.style.display = 'block';
+        }
+        // Hide regular suggestion
         if (suggestionText) suggestionText.textContent = '';
         if (suggestionButton) suggestionButton.style.display = 'none';
+    } else {
+        // Hide Steam help
+        if (steamHelpContainer) {
+            steamHelpContainer.style.display = 'none';
+        }
+        
+        // Handle regular suggestion
+        if (suggestion && suggestionUsername) {
+            if (suggestionText) {
+                suggestionText.textContent = suggestion;
+            }
+            if (suggestionUsernameEl) {
+                suggestionUsernameEl.textContent = suggestionUsername;
+            }
+            if (suggestionButton) {
+                suggestionButton.style.display = 'inline-block';
+            }
+        } else if (suggestion) {
+            if (suggestionText) {
+                suggestionText.textContent = suggestion;
+            }
+            if (suggestionButton) {
+                suggestionButton.style.display = 'none';
+            }
+        } else {
+            if (suggestionText) {
+                suggestionText.textContent = '';
+            }
+            if (suggestionButton) {
+                suggestionButton.style.display = 'none';
+            }
+        }
     }
     
-    // Show the alert
     alert.style.display = 'block';
-    
-    // Auto-hide after 10 seconds
     setTimeout(() => {
         hideError();
-    }, 30000);
+    }, 30000); // Longer timeout for Steam errors
 }
 
 function hideError() {
@@ -244,26 +270,24 @@ async function submitApiForm(formId) {
             let errorMessage = result.message || 'Failed to fetch data';
             let suggestionText = null;
             let suggestionUsername = null;
+            let steamHelp = null;
+            let steamUrl = null;
             
-            console.log('🔍 Processing response:', result);
-            console.log('🔍 Suggestion type:', typeof result.suggestion);
-            console.log('🔍 Suggestion value:', result.suggestion);
-            
-            // Check if we have a suggestion object
-            if (result.suggestion && typeof result.suggestion === 'object') {
-                // This is the correct format
-                suggestionText = `Did you mean "${result.suggestion.username}"? (Found ${result.suggestion.search_count} successful searches)`;
-                suggestionUsername = result.suggestion.username;
-                console.log('✅ Found suggestion object:', suggestionText, suggestionUsername);
-            } else if (result.suggestion && typeof result.suggestion === 'string') {
-                // Fallback: suggestion is a string
-                suggestionText = result.suggestion;
-                console.log('ℹ️ Suggestion is a string:', suggestionText);
-            } else {
-                console.log('❌ No suggestion found');
+            // Check for Steam-specific error
+            if (result.platform === 'steam' && result.show_steam_help) {
+                steamHelp = result.steam_help;
+                steamUrl = result.steam_url;
+                errorMessage = result.message;
+            } else if (result.suggestion) {
+                if (typeof result.suggestion === 'object' && result.suggestion.username) {
+                    suggestionText = `Did you mean "${result.suggestion.username}"? (Found ${result.suggestion.search_count} successful searches)`;
+                    suggestionUsername = result.suggestion.username;
+                } else if (typeof result.suggestion === 'string') {
+                    suggestionText = result.suggestion;
+                }
             }
             
-            showError(errorMessage, suggestionText, suggestionUsername);
+            showError(errorMessage, suggestionText, suggestionUsername, steamHelp, steamUrl);
             hidePreloader();
         }
         

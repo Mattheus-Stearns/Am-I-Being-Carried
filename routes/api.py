@@ -5,7 +5,7 @@ from models import PlayerProfile, APICallLog, Feedback
 from extensions import db, limiter
 from services.api_service import fetch_player_data
 from services.cache_service import get_cached_data, save_cached_data
-from utils.helpers import get_client_ip
+from utils.helpers import get_client_ip, get_steam_error_message
 from services.cache_service import log_api_call
 from utils.validators import validate_platform, validate_username
 from datetime import datetime, timezone
@@ -221,6 +221,28 @@ def query_api():
                         
                         # Get "Did you mean?" suggestion
                         suggestion = get_correction_suggestion(platform, username)
+
+                        if platform == 'steam':
+                            steam_error = get_steam_error_message(username)
+                            response_data = {
+                                'success': False,
+                                'error_code': 'PLAYER_NOT_FOUND',
+                                'platform': 'steam',
+                                'message': steam_error['message'],
+                                'steam_help': steam_error['suggestion'],
+                                'steam_url': f"https://steamcommunity.com/id/{username}",
+                                'show_steam_help': True
+                            }
+
+                            if suggestion:
+                                response_data['suggestion'] = {
+                                    'username': suggestion['display_name'],
+                                    'search_count': suggestion['search_count'],
+                                    'success_rate': f"{suggestion['success_count']}/{suggestion['search_count']}"
+                                }
+                                response_data['message'] = f'Player "{username}" not found on Steam. Did you mean "{suggestion["display_name"]}"?'
+                            
+                            return jsonify(response_data), 404
                         
                         response_data = {
                             'success': False,
