@@ -1,4 +1,12 @@
 # extensions.py
+import sqlalchemy
+
+# Fix for SQLAlchemy 2.0.51 missing __all__
+if not hasattr(sqlalchemy, '__all__'):
+    import inspect
+    sqlalchemy.__all__ = [name for name, obj in inspect.getmembers(sqlalchemy) 
+                         if not name.startswith('_')]
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
