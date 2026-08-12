@@ -8,6 +8,8 @@ webhook_bp = Blueprint('webhook', __name__)
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 support_bp = Blueprint('support', __name__)
 
+from . import main, api, webhook, admin, support, replay
+
 def register_blueprints(app):
     """Register all blueprints with the app"""
     app.register_blueprint(main_bp)
@@ -15,6 +17,3 @@ def register_blueprints(app):
     app.register_blueprint(webhook_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(support_bp)
-
-# Import routes (must be after blueprint creation)
-from . import main, api, webhook, admin, support, replay
