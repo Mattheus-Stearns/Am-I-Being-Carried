@@ -84,7 +84,7 @@ function showError(message, suggestion = null, suggestionUsername = null) {
     // Auto-hide after 10 seconds
     setTimeout(() => {
         hideError();
-    }, 10000);
+    }, 30000);
 }
 
 function hideError() {
@@ -237,26 +237,35 @@ async function submitApiForm(formId) {
         const result = await response.json();
         console.log('Response data:', result);
         
+        // In submitApiForm, after getting the response
         if (result.success) {
             window.location.href = '/results';
-            return;
+        } else {
+            let errorMessage = result.message || 'Failed to fetch data';
+            let suggestionText = null;
+            let suggestionUsername = null;
+            
+            console.log('🔍 Processing response:', result);
+            console.log('🔍 Suggestion type:', typeof result.suggestion);
+            console.log('🔍 Suggestion value:', result.suggestion);
+            
+            // Check if we have a suggestion object
+            if (result.suggestion && typeof result.suggestion === 'object') {
+                // This is the correct format
+                suggestionText = `Did you mean "${result.suggestion.username}"? (Found ${result.suggestion.search_count} successful searches)`;
+                suggestionUsername = result.suggestion.username;
+                console.log('✅ Found suggestion object:', suggestionText, suggestionUsername);
+            } else if (result.suggestion && typeof result.suggestion === 'string') {
+                // Fallback: suggestion is a string
+                suggestionText = result.suggestion;
+                console.log('ℹ️ Suggestion is a string:', suggestionText);
+            } else {
+                console.log('❌ No suggestion found');
+            }
+            
+            showError(errorMessage, suggestionText, suggestionUsername);
+            hidePreloader();
         }
-        
-        // Handle errors
-        let errorMessage = result.message || 'Failed to fetch data';
-        let suggestionText = null;
-        let suggestionUsername = null;
-        
-        // Check if we have a suggestion object
-        if (result.suggestion && typeof result.suggestion === 'object') {
-            suggestionText = `Did you mean "${result.suggestion.username}"? (Found ${result.suggestion.search_count} successful searches)`;
-            suggestionUsername = result.suggestion.username;
-        } else if (result.suggestion && typeof result.suggestion === 'string') {
-            suggestionText = result.suggestion;
-        }
-        
-        showError(errorMessage, suggestionText, suggestionUsername);
-        hidePreloader();
         
     } catch (error) {
         console.error('Fetch error:', error);
