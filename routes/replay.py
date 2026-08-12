@@ -271,7 +271,15 @@ def analyze_replay_file(filepath, unique_id, original_filename):
         
         # Step 5: Build player stats from parsed data
         player_stats = []
+        print(f"📊 Looking for player data in replay_data...")
+        print(f"📊 replay_data keys: {list(replay_data.keys())}")
+
+        # Try different possible locations for player data
+        players_found = False
+
+        # Method 1: Direct 'players' key
         if 'players' in replay_data:
+            print("📊 Found 'players' key directly")
             for player in replay_data.get('players', []):
                 player_stats.append({
                     'name': player.get('name', 'Unknown'),
@@ -282,6 +290,50 @@ def analyze_replay_file(filepath, unique_id, original_filename):
                     'score': player.get('score', 0),
                     'mvp': player.get('mvp', False)
                 })
+            players_found = True
+
+        # Method 2: Players might be in 'properties' or 'metadata'
+        if not players_found and 'properties' in replay_data:
+            print("📊 Looking for players in 'properties'")
+            props = replay_data.get('properties', {})
+            if 'players' in props:
+                for player in props.get('players', []):
+                    player_stats.append({
+                        'name': player.get('name', 'Unknown'),
+                        'goals': player.get('goals', 0),
+                        'assists': player.get('assists', 0),
+                        'saves': player.get('saves', 0),
+                        'shots': player.get('shots', 0),
+                        'score': player.get('score', 0),
+                        'mvp': player.get('mvp', False)
+                    })
+                players_found = True
+
+        # Method 3: Extract from telemetry dataframe
+        if not players_found and 'df_telemetry' in locals() and df_telemetry is not None:
+            print("📊 Extracting players from telemetry dataframe")
+            # Get unique player names from column names
+            import re
+            player_pattern = r'^([a-zA-Z0-9_]+)__'
+            players_set = set()
+            for col in df_telemetry.columns:
+                match = re.match(player_pattern, col)
+                if match:
+                    players_set.add(match.group(1))
+            
+            for player_name in players_set:
+                player_stats.append({
+                    'name': player_name,
+                    'goals': 0,
+                    'assists': 0,
+                    'saves': 0,
+                    'shots': 0,
+                    'score': 0,
+                    'mvp': False
+                })
+            players_found = True
+
+        print(f"📊 Found {len(player_stats)} players: {[p['name'] for p in player_stats]}")
         
         # Build result dictionary
         result = {
