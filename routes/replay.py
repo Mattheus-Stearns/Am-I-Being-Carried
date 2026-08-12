@@ -11,6 +11,8 @@ from werkzeug.utils import secure_filename
 from . import main_bp
 import traceback
 
+REPLAY_ANALYSIS_FOLDER = 'replay-analysis'
+
 # Import the actual replay analyzer functions
 try:
     from replay_analyzer.parse import parse_replay_to_dict
@@ -334,6 +336,13 @@ def analyze_replay_file(filepath, unique_id, original_filename):
             players_found = True
 
         print(f"📊 Found {len(player_stats)} players: {[p['name'] for p in player_stats]}")
+
+        replay_analysis_files = []
+        if os.path.exists(REPLAY_ANALYSIS_FOLDER):
+            for file in os.listdir(REPLAY_ANALYSIS_FOLDER):
+                if file.endswith('.png') and replay_date_str in file:
+                    replay_analysis_files.append(file)
+                    generated_files.append(os.path.join(REPLAY_ANALYSIS_FOLDER, file))
         
         # Build result dictionary
         result = {
@@ -344,7 +353,8 @@ def analyze_replay_file(filepath, unique_id, original_filename):
             'players': player_stats,
             'events': replay_data.get('events', [])[:50],
             'scoreboard': replay_data.get('scoreboard', {'blue': 0, 'orange': 0}),
-            'analysis_files': generated_files
+            'analysis_files': generated_files,
+            'replay_analysis_files': replay_analysis_files
         }
         
         print(f"✅ Analysis complete! Generated {len(generated_files)} files")
@@ -405,11 +415,30 @@ def upload_replay():
         print(f"📁 File size: {os.path.getsize(filepath)} bytes")
         
         analysis_files = []
+        boost_stats_content = ""
         
         try:
             # Parse the replay using your analyzer
             replay_data, generated_files = analyze_replay_file(filepath, unique_id, filename)
             analysis_files.extend(generated_files)
+            
+            # Read boost stats if the file exists
+            stats_file = os.path.join(ANALYSIS_FOLDER, unique_id, 'boost_stats.txt')
+            if os.path.exists(stats_file):
+                with open(stats_file, 'r') as f:
+                    boost_stats_content = f.read()
+                print(f"📊 Read boost stats: {len(boost_stats_content)} characters")
+            
+            # Also look for boost stats in the replay-analysis folder
+            if not boost_stats_content:
+                import glob
+                boost_files = glob.glob('replay-analysis/*_boost_stats.txt')
+                if boost_files:
+                    # Get the most recent one
+                    latest_boost = max(boost_files, key=os.path.getctime)
+                    with open(latest_boost, 'r') as f:
+                        boost_stats_content = f.read()
+                    print(f"📊 Read boost stats from replay-analysis: {len(boost_stats_content)} characters")
             
             print(f"📊 Replay data: {len(replay_data.get('players', []))} players, {len(replay_data.get('events', []))} events")
             
@@ -422,7 +451,8 @@ def upload_replay():
                 'players': replay_data.get('players', []),
                 'events': replay_data.get('events', [])[:50],
                 'scoreboard': replay_data.get('scoreboard', {}),
-                'analysis_files': generated_files
+                'analysis_files': generated_files,
+                'boost_stats_content': boost_stats_content  # 👈 Add boost stats
             }
             
             # Delete the original replay file after analysis
@@ -432,7 +462,8 @@ def upload_replay():
             return render_template('replay_analysis.html', 
                                  replay_data=replay_data,
                                  analysis_files=generated_files,
-                                 replay_id=unique_id)
+                                 replay_id=unique_id,
+                                 boost_stats_content=boost_stats_content)  # 👈 Pass to template
             
         except Exception as e:
             print(f"❌ Error analyzing replay: {e}")
@@ -453,7 +484,12 @@ def download_analysis_file(replay_id, filename):
         if '..' in filename or '/' in filename:
             return "Invalid filename", 400
         
+        # Try the analysis folder first
         file_path = os.path.join(ANALYSIS_FOLDER, replay_id, filename)
+        
+        # If not found, try the replay-analysis folder
+        if not os.path.exists(file_path):
+            file_path = os.path.join('replay-analysis', filename)
         
         print(f"📥 Download requested: {file_path}")
         
@@ -466,16 +502,15 @@ def download_analysis_file(replay_id, filename):
             mimetype = 'image/png'
         elif filename.endswith('.txt'):
             mimetype = 'text/plain'
+        elif filename.endswith('.csv'):
+            mimetype = 'text/csv'
         else:
             mimetype = 'application/octet-stream'
         
-        print(f"✅ Serving file: {file_path} ({mimetype})")
         return send_file(file_path, mimetype=mimetype, as_attachment=False)
         
     except Exception as e:
         print(f"❌ Download error: {e}")
-        import traceback
-        traceback.print_exc()
         return str(e), 500
 
 @main_bp.route('/replay/delete/<replay_id>', methods=['POST'])
