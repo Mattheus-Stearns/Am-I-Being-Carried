@@ -1,52 +1,49 @@
 # ============================================
-# Core Web Framework
+# Core Web Framework - Compatible Versions
 # ============================================
-Flask
-Flask-SQLAlchemy
-Flask-Migrate
-Flask-Limiter
-Flask-Session
-click
+Flask==3.0.0
+Flask-SQLAlchemy==3.0.0
+SQLAlchemy==2.0.20
+Flask-Migrate==4.0.0
+Flask-Limiter==3.0.0
+Flask-Session==0.6.0
+click==8.1.0
 
 # ============================================
 # Database & Caching
 # ============================================
-psycopg2-binary
-redis
+psycopg2-binary==2.9.0
+redis==5.0.0
 
 # ============================================
 # HTTP & API Clients
 # ============================================
-requests
+requests==2.31.0
 
 # ============================================
 # Payments & Analytics
 # ============================================
-stripe
-geoip2
+stripe==7.0.0
+geoip2==4.7.0
 
 # ============================================
 # Environment & Server
 # ============================================
-python-dotenv==
-gunicorn
+python-dotenv==1.0.0
+gunicorn==21.0.0
 
 # ============================================
 # Rocket League Replay Analysis
 # ============================================
-# For parsing replay files (rrrocket binary needs to be in the right folder)
-
-# Data Science & Visualization
-numpy
-pandas
-matplotlib
-
-# Financial plotting for candlestick charts
-mplfinance
+# Data Science & Visualization - Compatible Versions
+numpy>=1.24.0,<2.0.0
+pandas>=1.5.0,<2.0.0
+matplotlib>=3.7.0,<4.0.0
+mplfinance>=0.12.7,<1.0.0
 
 # ============================================
 # Optional: For better performance
 # ============================================
-# uvicorn
-# httpx
-# aiohttp
+# uvicorn==0.24.0
+# httpx==0.25.0
+# aiohttp==3.9.0
