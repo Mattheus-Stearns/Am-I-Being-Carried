@@ -1,4 +1,4 @@
-# 🏆 Am I Being Carried? - Rocket League Stats Tracker
+# Am I Being Carried? - Rocket League Stats Tracker
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0.0-green.svg)](https://flask.palletsprojects.com/)
@@ -7,45 +7,49 @@
 
 A web application that analyzes Rocket League competitive match data to determine if you're being carried by your teammates. Upload replays or search any player to get detailed stats and a unique "carried score."
 
-## 🚀 Features
+## Features
 
-- **🔍 Player Search**: Search any Rocket League player by username and platform (Epic, Steam, PSN, Xbox)
-- **📊 Recent Matches**: Display last 10 competitive matches (2v2, 3v3) - 1v1 matches are excluded
-- **📈 Performance Metrics**: Track goals, assists, saves, shots, MVPs, and more
-- **🎯 Carried Score Algorithm**: AI-powered analysis to detect if you're being carried
+- **Player Search**: Search any Rocket League player by username and platform (Epic, Steam, PSN, Xbox)
+- **Recent Matches**: Display last 10 competitive matches (2v2, 3v3) - 1v1 matches are excluded
+- **Performance Metrics**: Track goals, assists, saves, shots, MVPs, and more
+- **Carried Score Algorithm**: AI-powered analysis to detect if you're being carried
   - Win rate analysis
   - MVP rate tracking
   - Performance metrics evaluation
   - 0-100% carried score with descriptive labels
-- **🎮 Replay Analysis**: Upload `.replay` files for detailed match analysis
+- **Replay Analysis**: Upload `.replay` files for detailed match analysis
   - Player statistics (goals, assists, saves, shots)
   - Boost usage and efficiency metrics
   - Player speed tracking
   - Event timeline
   - Visual graphs and charts
-- **📈 ELO History**: Track rating changes over time (coming soon)
-- **🔄 Data Caching**: Rate-limited API calls with cached results
-- **📱 Share Results**: Generate shareable images with your carried score
-- **🖥️ Responsive Design**: Works on desktop and mobile devices
-- **🔒 Rate Limiting**: 1 request per 5 minutes to prevent abuse
-- **💬 Feedback System**: Submit feedback directly from the footer
-- **❤️ Community Support**: Donation system to help cover API costs
+- **ELO History**: Track rating changes over time (coming soon)
+- **Data Caching**: Rate-limited API calls with cached results
+- **Share Results**: Generate shareable images with your carried score
+- **Responsive Design**: Works on desktop and mobile devices
+- **Rate Limiting**: 1 request per 5 minutes to prevent abuse
+- **Feedback System**: Submit feedback directly from the footer
+- **Community Support**: Donation system to help cover API costs
 
-## 📸 Screenshots
+## Screenshots
 
 ### Homepage
+
 ![Homepage](screenshots/homepage.png)
 
 ### Results Page
+
 ![Results Page](screenshots/results.png)
 
 ### Carried Score Card
+
 ![Carried Score](screenshots/carried-score.png)
 
 ### Replay Analysis
+
 ![Replay Analysis](screenshots/replay-analysis.png)
 
-## 🛠️ Tech Stack
+## ️ Tech Stack
 
 - **Backend**: Flask 3.0.0 (Python 3.10+)
 - **Database**: PostgreSQL 15+ (with SQLAlchemy ORM)
@@ -60,35 +64,41 @@ A web application that analyzes Rocket League competitive match data to determin
 - **API Integration**: Parse.bot API (paid credits)
 - **Payments**: Stripe (donations)
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Python 3.10 or higher
 - PostgreSQL 15+ (production) or SQLite (development)
 - Redis (optional, for production)
 - Parse.bot API key (for player data)
 - Stripe account (for donations)
+- Ballchasing.com API key (for ml model training)
 
-## 🔧 Installation
+## Installation
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/yourusername/am-i-being-carried.git
 cd am-i-being-carried
 ```
 
 ### 2. Create Virtual Environment
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 ### 3. Install Dependencies
+
 ```bash
-pip install -r requirements.txt
+pip install -r dependencies.txt
 ```
 
 ### 4. Set Up Environment Variables
+
 Create a `.env` file in the root directory:
+
 ```env
 # Flask Configuration
 SECRET_KEY=your-secret-key-here
@@ -112,9 +122,13 @@ AUTHORIZED_IPS=127.0.0.1,98.151.210.183
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DB=0
+
+# Ballchasing API
+BALLCHASING_API_KEY=xxxxx
 ```
 
 ### 5. Initialize Database
+
 ```bash
 flask db init
 flask db migrate -m "Initial migration"
@@ -122,20 +136,22 @@ flask db upgrade
 ```
 
 ### 6. Run the Application
+
 ```bash
 flask run
 ```
 
 Or with Gunicorn (production):
+
 ```bash
 gunicorn -w 4 -b 127.0.0.1:9040 app:app
 ```
 
 Visit `http://localhost:5000` to start using the app!
 
-## 📁 Project Structure
+## Project Structure
 
-```
+```txt
 am-i-being-carried/
 ├── app.py                 # Main Flask application
 ├── config.py              # Configuration settings
@@ -207,21 +223,21 @@ am-i-being-carried/
     └── requirements_data_pipeline.txt    # Additional dependencies
 ```
 
-## 🎮 Supported Platforms
+## Supported Platforms
 
 - Epic Games (epic)
 - Steam (steam)
 - PlayStation Network (psn)
 - Xbox (xbox)
 
-## 📊 Carried Score Algorithm
+## Carried Score Algorithm
 
 The carried score algorithm analyzes multiple metrics to determine if a player is being carried:
 
 ### Scoring Factors
 
 | Factor | Weight | Description |
-|--------|--------|-------------|
+| -------- | -------- | ------------- |
 | Win Rate | 0-40 points | High win rate with low performance = suspicious |
 | MVP Rate | 0-25 points | Low MVP rate with high wins = carried |
 | Goals/Match | 0-15 points | Low goals = less contribution |
@@ -234,14 +250,14 @@ The carried score algorithm analyzes multiple metrics to determine if a player i
 ### Score Categories
 
 | Score Range | Label | Description |
-|-------------|-------|-------------|
-| 80-100% | 🚨 Heavy Carry | Significantly carried by teammates |
-| 60-79% | ⚠️ Sometimes Carried | Carried in some games |
-| 40-59% | ⚖️ Balanced | Contributing fairly to wins |
-| 20-39% | 💪 Contributor | Pulling your weight |
-| 0-19% | 🏆 Carrying Others | Carrying your team |
+| ------------- | ------- | ------------- |
+| 80-100% | Heavy Carry | Significantly carried by teammates |
+| 60-79% | ️ Sometimes Carried | Carried in some games |
+| 40-59% | ️ Balanced | Contributing fairly to wins |
+| 20-39% | Contributor | Pulling your weight |
+| 0-19% | Carrying Others | Carrying your team |
 
-## 🎯 Replay Analysis Features
+## Replay Analysis Features
 
 The replay analyzer extracts detailed match data from `.replay` files:
 
@@ -262,13 +278,16 @@ The replay analyzer extracts detailed match data from `.replay` files:
    - Position and velocity data
    - Frame-by-frame analysis
 
-## 🚀 API Endpoints
+## API Endpoints
 
 ### GET /
+
 Homepage - Search form
 
 ### POST /api/query
+
 Query player data from Parse.bot API
+
 ```json
 {
   "platform_id": "epic",
@@ -278,16 +297,21 @@ Query player data from Parse.bot API
 ```
 
 ### GET /results
+
 Display player results page
 
 ### POST /replay/upload
+
 Upload and analyze a replay file (multipart/form-data)
 
-### GET /replay/download/<replay_id>/<filename>
+### GET /replay/download/<replay_id>/<file_name>
+
 Download analysis files (PNG, CSV, TXT)
 
 ### POST /api/feedback
+
 Submit feedback
+
 ```json
 {
   "name": "Optional",
@@ -297,20 +321,22 @@ Submit feedback
 }
 ```
 
-## 🔐 Rate Limiting
+## Rate Limiting
 
 - **Limit**: 1 request per 5 minutes (hybrid IP + session-based)
 - **Cache**: Results cached for 24 hours
 - **Authorized IPs**: Bypass rate limiting (configured in `.env`)
 
-## 🧪 Development
+## Development
 
 ### Running Tests
+
 ```bash
 pytest tests/
 ```
 
 ### Database Management
+
 ```bash
 # Create a migration
 flask db migrate -m "Description"
@@ -323,6 +349,7 @@ flask db downgrade
 ```
 
 ### Running Analytics Scripts
+
 ```bash
 # View API usage statistics
 python run.py analytics stats
@@ -334,7 +361,7 @@ python run.py size_alert
 python run.py cleanup --days 90 --dry-run
 ```
 
-## 🚀 Deployment
+## Deployment
 
 ### Deploy to VPS with GitHub Actions
 
@@ -347,6 +374,7 @@ python run.py cleanup --days 90 --dry-run
 2. Push to `main` branch to trigger deployment
 
 ### Manual Deployment
+
 ```bash
 # Pull latest code
 git pull origin main
@@ -362,7 +390,7 @@ flask db upgrade
 sudo systemctl restart amibeingcarried
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -370,25 +398,26 @@ sudo systemctl restart amibeingcarried
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [Parse.bot](https://parse.bot) for API access
+- [Ballchasing.com](https://ballchasing.com/) for thousands of replays for ml training
 - [rrrocket](https://github.com/rrrocket) for replay parsing
 - [Flask-Limiter](https://flask-limiter.readthedocs.io/) for rate limiting
 - [html2canvas](https://html2canvas.hertzen.com/) for image generation
 - [Bootstrap](https://getbootstrap.com/) for responsive design
 
-## 📬 Contact
+## Contact
 
 - GitHub: [@yourusername](https://github.com/yourusername)
 - Website: [amibeingcarried.com](https://amibeingcarried.com)
 
 ---
 
-**Made with ❤️ for the Rocket League Community**
+## Made with <3 for the Rocket League Community
 
-### ⭐ Star this repo if you find it helpful!
+### Star this repo if you find it helpful

@@ -40,6 +40,7 @@ jobs:
             STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
             STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
             STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+            BALLCHASING_API_KEY=${{ secrets.BALLCHASING_API_KEY }}
             EOF
             
             chmod 600 .env
