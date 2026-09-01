@@ -1,6 +1,7 @@
 # .gitignore
 .env
 .venv/
+.vscode/
 __pycache__/
 example_responses/
 scripts/__pycache__/
