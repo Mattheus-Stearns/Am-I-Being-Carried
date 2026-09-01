@@ -184,10 +184,27 @@ am-i-being-carried/
 ├── uploads/               # Uploaded files
 │   ├── replays/           # Temporary replay storage
 │   └── analysis/          # Replay analysis output
-└── scripts/               # Utility scripts
-    ├── analytics.py       # API usage analytics
-    ├── cleanup.py         # Database cleanup
-    └── populate_suggestions.py # Suggestion population
+├── scripts/               # Utility scripts
+│   ├── analytics.py       # API usage analytics
+│   ├── cleanup.py         # Database cleanup
+│   └── populate_suggestions.py # Suggestion population
+└── rocket_league_ml/
+    ├── data_pipeline/
+    │   ├── __init__.py
+    │   ├── ballchasing_downloader.py    # Fetch replays from API
+    │   ├── replay_processor.py           # Process replays with your parser
+    │   ├── feature_extractor.py          # Convert to 1-second snapshots
+    │   ├── data_storage.py               # Store/load processed data
+    │   └── config.py                     # Configuration
+    ├── data/
+    │   ├── raw/                          # Downloaded .replay files
+    │   ├── processed/                    # Processed DataFrames (Parquet)
+    │   └── features/                     # Feature-engineered data for ML
+    ├── scripts/
+    │   ├── download_replays.py           # CLI to download
+    │   ├── process_replays.py            # CLI to process
+    │   └── prepare_dataset.py            # Prepare final dataset
+    └── requirements_data_pipeline.txt    # Additional dependencies
 ```
 
 ## 🎮 Supported Platforms
