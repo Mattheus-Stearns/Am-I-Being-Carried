@@ -1,28 +1,37 @@
-# Am I Being Carried? - Rocket League Stats Tracker
+# 🏆 Am I Being Carried? - Rocket League Stats Tracker
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-2.0+-green.svg)](https://flask.palletsprojects.com/)
-[![Bootstrap](https://img.shields.io/badge/Bootstrap-5.1-purple.svg)](https://getbootstrap.com/)
-[![License](https://img.shields.io/badge/License-APACHE-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0.0-green.svg)](https://flask.palletsprojects.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A web application that analyzes Rocket League competitive match data to determine if players are being carried by their teammates. Built with Flask and Bootstrap, featuring real-time stats tracking and a unique "carried score" algorithm.
+A web application that analyzes Rocket League competitive match data to determine if you're being carried by your teammates. Upload replays or search any player to get detailed stats and a unique "carried score."
 
-## Features
+## 🚀 Features
 
-- **Player Search**: Search any Rocket League player by username and platform
-- **Recent Matches**: Display last 10 competitive matches (1v1, 2v2, 3v3)
-- **Performance Metrics**: Track goals, assists, saves, shots, MVPs, and more
-- **Carried Score Algorithm**: AI-powered analysis to detect if you're being carried
+- **🔍 Player Search**: Search any Rocket League player by username and platform (Epic, Steam, PSN, Xbox)
+- **📊 Recent Matches**: Display last 10 competitive matches (2v2, 3v3) - 1v1 matches are excluded
+- **📈 Performance Metrics**: Track goals, assists, saves, shots, MVPs, and more
+- **🎯 Carried Score Algorithm**: AI-powered analysis to detect if you're being carried
   - Win rate analysis
   - MVP rate tracking
   - Performance metrics evaluation
   - 0-100% carried score with descriptive labels
-- **Data Caching**: Rate-limited API calls with cached results
-- **Share Results**: Generate shareable images with your carried score
-- **Responsive Design**: Works on desktop and mobile devices
-- **Rate Limiting**: 1 request per 5 minutes to prevent abuse
+- **🎮 Replay Analysis**: Upload `.replay` files for detailed match analysis
+  - Player statistics (goals, assists, saves, shots)
+  - Boost usage and efficiency metrics
+  - Player speed tracking
+  - Event timeline
+  - Visual graphs and charts
+- **📈 ELO History**: Track rating changes over time (coming soon)
+- **🔄 Data Caching**: Rate-limited API calls with cached results
+- **📱 Share Results**: Generate shareable images with your carried score
+- **🖥️ Responsive Design**: Works on desktop and mobile devices
+- **🔒 Rate Limiting**: 1 request per 5 minutes to prevent abuse
+- **💬 Feedback System**: Submit feedback directly from the footer
+- **❤️ Community Support**: Donation system to help cover API costs
 
-## Screenshots
+## 📸 Screenshots
 
 ### Homepage
 ![Homepage](screenshots/homepage.png)
@@ -33,24 +42,33 @@ A web application that analyzes Rocket League competitive match data to determin
 ### Carried Score Card
 ![Carried Score](screenshots/carried-score.png)
 
-## Tech Stack
+### Replay Analysis
+![Replay Analysis](screenshots/replay-analysis.png)
 
-- **Backend**: Flask (Python 3.8+)
-- **Frontend**: Bootstrap 5, Font Awesome 6
-- **Database**: PostgreSQL (for production) / SQLite (development)
-- **Caching**: Flask session-based caching
-- **Rate Limiting**: Flask-Limiter
+## 🛠️ Tech Stack
+
+- **Backend**: Flask 3.0.0 (Python 3.10+)
+- **Database**: PostgreSQL 15+ (with SQLAlchemy ORM)
+- **Caching**: Redis + Flask-Session (server-side sessions)
+- **Rate Limiting**: Flask-Limiter (hybrid IP + session-based)
+- **Replay Analysis**: Custom `rrrocket` parser (Rust-based)
+  - Telemetry data extraction
+  - Boost usage analytics
+  - Speed and position tracking
+- **Frontend**: Bootstrap 5, Font Awesome 6, Chart.js
 - **Image Generation**: html2canvas
-- **API**: Rocket League Tracker Network API
+- **API Integration**: Parse.bot API (paid credits)
+- **Payments**: Stripe (donations)
 
-## Prerequisites
+## 📋 Prerequisites
 
-- Python 3.8 or higher
-- PostgreSQL (production) or SQLite (development)
-- Rocket League Tracker Network API key
-- Virtual environment (recommended)
+- Python 3.10 or higher
+- PostgreSQL 15+ (production) or SQLite (development)
+- Redis (optional, for production)
+- Parse.bot API key (for player data)
+- Stripe account (for donations)
 
-## Installation
+## 🔧 Installation
 
 ### 1. Clone the Repository
 ```bash
@@ -60,13 +78,13 @@ cd am-i-being-carried
 
 ### 2. Create Virtual Environment
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 ### 3. Install Dependencies
 ```bash
-pip install -r dependencies.txt
+pip install -r requirements.txt
 ```
 
 ### 4. Set Up Environment Variables
@@ -74,19 +92,26 @@ Create a `.env` file in the root directory:
 ```env
 # Flask Configuration
 SECRET_KEY=your-secret-key-here
-FLASK_ENV=development
-DEBUG=True
+FLASK_ENV=production
 
 # Database Configuration
 DATABASE_URL=postgresql://username:password@localhost:5432/amibeingcarried
-# Or for SQLite:
-# DATABASE_URL=sqlite:///app.db
 
-# Rocket League Tracker API
-TRACKER_API_KEY=your-tracker-api-key-here
+# Parse.bot API
+API_KEY=pmx_your-api-key-here
 
-# Rate Limiting
-RATE_LIMIT=1 per 5 minutes
+# Stripe (optional, for donations)
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxx
+STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxx
+
+# Authorized IPs (comma-separated)
+AUTHORIZED_IPS=127.0.0.1,98.151.210.183
+
+# Redis (optional, for production)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=0
 ```
 
 ### 5. Initialize Database
@@ -99,43 +124,80 @@ flask db upgrade
 ### 6. Run the Application
 ```bash
 flask run
-# Or for development with auto-reload:
-python app.py
+```
+
+Or with Gunicorn (production):
+```bash
+gunicorn -w 4 -b 127.0.0.1:9040 app:app
 ```
 
 Visit `http://localhost:5000` to start using the app!
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 am-i-being-carried/
 ├── app.py                 # Main Flask application
-├── models.py              # Database models
 ├── config.py              # Configuration settings
+├── models.py              # Database models
+├── extensions.py          # Flask extensions
+├── database.py            # Database initialization
 ├── requirements.txt       # Python dependencies
 ├── .env                   # Environment variables
 ├── README.md              # This file
+├── routes/
+│   ├── __init__.py        # Blueprint registration
+│   ├── main.py            # Main routes (index, results, support)
+│   ├── api.py             # API endpoints
+│   ├── webhook.py         # Stripe webhook handler
+│   ├── admin.py           # Admin routes
+│   ├── support.py         # Support/donation routes
+│   └── replay.py          # Replay analysis routes
+├── services/
+│   ├── api_service.py     # Parse.bot API calls
+│   ├── cache_service.py   # Caching logic
+│   └── suggestion_service.py # "Did you mean?" suggestions
+├── utils/
+│   ├── helpers.py         # Helper functions
+│   ├── validators.py      # Input validation
+│   └── season_dates.py    # Rocket League season mapping
+├── replay_analyzer/       # Replay parsing and analysis
+│   ├── parse.py           # Replay parsing using rrrocket
+│   ├── dataframe.py       # Telemetry data extraction
+│   └── graph.py           # Graph generation
 ├── templates/
 │   ├── layout.html        # Base template
 │   ├── index.html         # Homepage
-│   └── results.html       # Results page
+│   ├── results.html       # Results page
+│   ├── history.html       # ELO history
+│   ├── donate.html        # Donation page
+│   ├── support.html       # Support page
+│   ├── upload_replay.html # Replay upload
+│   ├── replay_analysis.html # Replay analysis results
+│   └── admin/             # Admin templates
 ├── static/
 │   ├── css/
 │   │   └── style.css      # Custom styles
 │   └── js/
 │       └── script.js      # JavaScript functions
 ├── migrations/            # Database migrations
-└── screenshots/           # Screenshots for README
+├── uploads/               # Uploaded files
+│   ├── replays/           # Temporary replay storage
+│   └── analysis/          # Replay analysis output
+└── scripts/               # Utility scripts
+    ├── analytics.py       # API usage analytics
+    ├── cleanup.py         # Database cleanup
+    └── populate_suggestions.py # Suggestion population
 ```
 
-## Supported Platforms
+## 🎮 Supported Platforms
 
 - Epic Games (epic)
 - Steam (steam)
 - PlayStation Network (psn)
 - Xbox (xbox)
 
-## Carried Score Algorithm
+## 📊 Carried Score Algorithm
 
 The carried score algorithm analyzes multiple metrics to determine if a player is being carried:
 
@@ -156,19 +218,40 @@ The carried score algorithm analyzes multiple metrics to determine if a player i
 
 | Score Range | Label | Description |
 |-------------|-------|-------------|
-| 80-100% | Heavy Carry | Significantly carried by teammates |
-| 60-79% | Sometimes Carried | Carried in some games |
-| 40-59% | Balanced | Contributing fairly to wins |
-| 20-39% | Contributor | Pulling your weight |
-| 0-19% | Carrying Others | Carrying your team |
+| 80-100% | 🚨 Heavy Carry | Significantly carried by teammates |
+| 60-79% | ⚠️ Sometimes Carried | Carried in some games |
+| 40-59% | ⚖️ Balanced | Contributing fairly to wins |
+| 20-39% | 💪 Contributor | Pulling your weight |
+| 0-19% | 🏆 Carrying Others | Carrying your team |
 
-## API Endpoints
+## 🎯 Replay Analysis Features
+
+The replay analyzer extracts detailed match data from `.replay` files:
+
+1. **Player Statistics**
+   - Goals, assists, saves, shots
+   - Score and MVP status
+   - Boost usage (average, max, min)
+   - Time with boost levels
+
+2. **Visual Graphs**
+   - Player speed tracking
+   - Boost usage over time
+   - Candlestick charts for player activity
+   - Combined performance metrics
+
+3. **Telemetry Data**
+   - CSV export of all telemetry
+   - Position and velocity data
+   - Frame-by-frame analysis
+
+## 🚀 API Endpoints
 
 ### GET /
 Homepage - Search form
 
 ### POST /api/query
-Query player data from Tracker Network API
+Query player data from Parse.bot API
 ```json
 {
   "platform_id": "epic",
@@ -180,38 +263,34 @@ Query player data from Tracker Network API
 ### GET /results
 Display player results page
 
-### POST /api/refresh
-Refresh cached data
+### POST /replay/upload
+Upload and analyze a replay file (multipart/form-data)
+
+### GET /replay/download/<replay_id>/<filename>
+Download analysis files (PNG, CSV, TXT)
+
+### POST /api/feedback
+Submit feedback
 ```json
 {
-  "platform_id": "epic",
-  "username": "player_name"
+  "name": "Optional",
+  "email": "optional@example.com",
+  "rating": 5,
+  "message": "Great app!"
 }
 ```
 
-### POST /api/clear_session
-Clear session data
+## 🔐 Rate Limiting
 
-## Rate Limiting
+- **Limit**: 1 request per 5 minutes (hybrid IP + session-based)
+- **Cache**: Results cached for 24 hours
+- **Authorized IPs**: Bypass rate limiting (configured in `.env`)
 
-- **Limit**: 1 request per 5 minutes (per IP)
-- **Cache**: Results cached for 7 days
-- **Headers**: `Retry-After` included in rate limit responses
-
-## Development
+## 🧪 Development
 
 ### Running Tests
 ```bash
 pytest tests/
-```
-
-### Code Style
-```bash
-# Format code
-black app.py models.py
-
-# Check linting
-flake8 app.py models.py
 ```
 
 ### Database Management
@@ -226,7 +305,47 @@ flask db upgrade
 flask db downgrade
 ```
 
-## Contributing
+### Running Analytics Scripts
+```bash
+# View API usage statistics
+python run.py analytics stats
+
+# Check database size
+python run.py size_alert
+
+# Clean up old data
+python run.py cleanup --days 90 --dry-run
+```
+
+## 🚀 Deployment
+
+### Deploy to VPS with GitHub Actions
+
+1. Set up GitHub secrets:
+   - `SSH_HOST`: Your VPS IP
+   - `SSH_USERNAME`: Your VPS username
+   - `SSH_PRIVATE_KEY`: Your SSH private key
+   - `SECRET_KEY`, `DATABASE_URL`, `API_KEY`: App secrets
+
+2. Push to `main` branch to trigger deployment
+
+### Manual Deployment
+```bash
+# Pull latest code
+git pull origin main
+
+# Install dependencies
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Apply migrations
+flask db upgrade
+
+# Restart service
+sudo systemctl restart amibeingcarried
+```
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -234,31 +353,25 @@ flask db downgrade
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
+## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
-- [Rocket League Tracker Network](https://tracker.gg/rocket-league) for API access
+- [Parse.bot](https://parse.bot) for API access
+- [rrrocket](https://github.com/rrrocket) for replay parsing
 - [Flask-Limiter](https://flask-limiter.readthedocs.io/) for rate limiting
 - [html2canvas](https://html2canvas.hertzen.com/) for image generation
 - [Bootstrap](https://getbootstrap.com/) for responsive design
 
-## Contact
+## 📬 Contact
 
 - GitHub: [@yourusername](https://github.com/yourusername)
-- Twitter: [@yourtwitter](https://twitter.com/yourtwitter)
-- Email: your.email@example.com
-
-## Links
-
-- [Live Demo](https://amibeingcarried.com)
-- [Documentation](https://docs.amibeingcarried.com)
-- [Issue Tracker](https://github.com/yourusername/am-i-being-carried/issues)
+- Website: [amibeingcarried.com](https://amibeingcarried.com)
 
 ---
 
-**Made with <3 for the Rocket League Community**
+**Made with ❤️ for the Rocket League Community**
 
-### Star this repo if you find it helpful!
+### ⭐ Star this repo if you find it helpful!
