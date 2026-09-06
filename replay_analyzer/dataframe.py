@@ -20,6 +20,8 @@ def build_telemetry_dataframe(replay_data, replay_date):
     actor_rigidbody_data = defaultdict(list)
     actor_byte_data = defaultdict(list)
     actor_activeactor_refs = defaultdict(set)
+    actor_custom_names = {}
+    actor_object_types = {}
     
     print(f"\n================== DYNAMIC SCANNING ==================")
     print(f"Processing {len(frames)} frames with {len(objects_pool)} object definitions")
@@ -38,6 +40,18 @@ def build_telemetry_dataframe(replay_data, replay_date):
                 
             attr_name = objects_pool[attr_id]
             actor_attributes[act_id].add(attr_name)
+            
+            # Store custom_name
+            if "custom_name" in attr_payload:
+                custom_name = attr_payload.get("custom_name", "")
+                if custom_name:
+                    actor_custom_names[act_id] = custom_name
+            
+            # Store ActorType
+            if "ActorType" in attr_payload:
+                actor_type = attr_payload.get("ActorType", "")
+                if actor_type:
+                    actor_object_types[act_id] = actor_type
             
             # Store strings
             if "String" in attr_payload:
@@ -95,7 +109,7 @@ def build_telemetry_dataframe(replay_data, replay_date):
                     if isinstance(target_id, int):
                         actor_activeactor_refs[act_id].add(target_id)
     
-    # PASS 2: Identify Players - Prioritize real names over 'Player X'
+    # PASS 2: Identify Players
     player_actors = {}
     
     def is_real_player_name(name):
@@ -135,16 +149,66 @@ def build_telemetry_dataframe(replay_data, replay_date):
             }
             print(f"✅ Player (by ID): Actor {act_id} -> '{unique_id[:8]}...'")
     
-    # PASS 3: Identify Ball
-    ball_actors = set()
+    # PASS 3: Identify Ball - Using Multiple Methods
     print("\n🔍 Searching for ball...")
+    ball_actor_ids = set()
     
-    no_byte_actors = {}
-    for act_id in actor_rigidbody_data:
-        if act_id not in actor_byte_data and len(actor_rigidbody_data[act_id]) > 10:
+    # METHOD 1: Check custom_name for "ball"
+    print("  Method 1: Checking custom_name for 'ball'...")
+    for act_id, custom_name in actor_custom_names.items():
+        if 'ball' in custom_name.lower():
+            print(f"    ✅ Ball found by custom_name: Actor {act_id} -> '{custom_name}'")
+            ball_actor_ids.add(act_id)
+    
+    # METHOD 2: Check ActorType for ball-related types
+    print("  Method 2: Checking ActorType for ball...")
+    for act_id, actor_type in actor_object_types.items():
+        if 'ball' in actor_type.lower():
+            print(f"    ✅ Ball found by ActorType: Actor {act_id} -> '{actor_type}'")
+            ball_actor_ids.add(act_id)
+    
+    # METHOD 3: Check object attributes for ball references
+    print("  Method 3: Checking object attributes for ball...")
+    for act_id, attrs in actor_attributes.items():
+        attrs_str = ' '.join(attrs).lower()
+        if 'ball' in attrs_str:
+            # Make sure it's not a player (players might have "ball" in their attributes)
+            if act_id not in player_actors:
+                print(f"    ✅ Ball found by attributes: Actor {act_id}")
+                ball_actor_ids.add(act_id)
+    
+    # METHOD 4: Check for specific ball object types in the pool
+    print("  Method 4: Checking object pool for ball types...")
+    ball_object_indices = set()
+    for idx, obj_name in enumerate(objects_pool):
+        if 'ball' in obj_name.lower():
+            ball_object_indices.add(idx)
+    
+    for act_id, attrs in actor_attributes.items():
+        if act_id not in player_actors:
+            for idx in ball_object_indices:
+                if idx in attrs or str(idx) in attrs:
+                    ball_actor_ids.add(act_id)
+                    break
+    
+    # METHOD 5: Movement-based fallback
+    if not ball_actor_ids:
+        print("  Method 5: Fallback - using movement patterns...")
+        ball_candidates = {}
+        
+        for act_id in actor_rigidbody_data:
+            if act_id in player_actors:
+                continue
+            if act_id in actor_byte_data:
+                continue
+            
             data = actor_rigidbody_data[act_id]
+            if len(data) < 10:
+                continue
+            
             total_dist = 0
             max_speed = 0
+            z_values = []
             
             for i in range(1, len(data)):
                 prev_pos = data[i-1]['pos']
@@ -158,31 +222,38 @@ def build_telemetry_dataframe(replay_data, replay_date):
                 speed = (vel[0]**2 + vel[1]**2 + vel[2]**2) ** 0.5
                 if speed > max_speed:
                     max_speed = speed
+                
+                z_values.append(curr_pos[2])
             
-            z_values = [d['pos'][2] for d in data]
-            z_range = max(z_values) - min(z_values)
+            if z_values:
+                z_range = max(z_values) - min(z_values)
+                avg_z = sum(z_values) / len(z_values)
+            else:
+                z_range = 0
+                avg_z = 0
             
-            no_byte_actors[act_id] = {
+            ball_candidates[act_id] = {
                 'total_dist': total_dist,
                 'max_speed': max_speed,
                 'z_range': z_range,
+                'avg_z': avg_z,
                 'data_points': len(data)
             }
+        
+        sorted_candidates = sorted(ball_candidates.items(), 
+                                  key=lambda x: (x[1]['total_dist'] + x[1]['z_range'] * 2), 
+                                  reverse=True)
+        
+        for act_id, stats in sorted_candidates[:3]:
+            if stats['total_dist'] > 100 and stats['z_range'] > 50:
+                print(f"    ✅ Ball found by movement: Actor {act_id}")
+                ball_actor_ids.add(act_id)
     
-    if no_byte_actors:
-        sorted_actors = sorted(no_byte_actors.items(), 
-                              key=lambda x: x[1]['total_dist'], reverse=True)
-        
-        for act_id, stats in sorted_actors[:5]:
-            if stats['total_dist'] > 1000 and stats['z_range'] > 30:
-                ball_actors.add(act_id)
-                print(f"✅ Ball found: Actor {act_id}")
-                break
-        
-        if not ball_actors and sorted_actors:
-            act_id = sorted_actors[0][0]
-            ball_actors.add(act_id)
-            print(f"✅ Ball (by movement): Actor {act_id}")
+    # Print final ball actors
+    if ball_actor_ids:
+        print(f"\n  ✅ Ball actors found: {sorted(ball_actor_ids)}")
+    else:
+        print("  ❌ No ball found! Ball data will be zeros.")
     
     # PASS 4: Identify ALL cars for each player
     player_cars = defaultdict(list)
@@ -194,7 +265,7 @@ def build_telemetry_dataframe(replay_data, replay_date):
     print(f"\n🏎️ Finding cars for each player...")
     
     for act_id in actor_rigidbody_data:
-        if act_id not in ball_actors and act_id in actor_byte_data:
+        if act_id not in ball_actor_ids and act_id in actor_byte_data:
             if len(actor_rigidbody_data[act_id]) > 5:
                 player_name = None
                 
@@ -291,20 +362,19 @@ def build_telemetry_dataframe(replay_data, replay_date):
     
     print(f"🎮 Game start: Frame {game_start_frame}, Time {game_start_time:.3f}s")
     
-    # PASS 8: Build Telemetry Dataframe with Boost Stats
+    # PASS 8: Build Telemetry Dataframe
     print("\n🏎️ Building telemetry dataframe with boost statistics...")
     current_state = {}
     telemetry_records = []
     
     all_cars_set = set(car_to_player.keys())
     all_boost = set(boost_to_car.keys())
-    tracked_actors = all_cars_set | ball_actors | all_boost
+    tracked_actors = all_cars_set | ball_actor_ids | all_boost
     
-    print(f"  Tracking {len(tracked_actors)} actors: {len(all_cars_set)} cars, {len(ball_actors)} ball(s), {len(all_boost)} boost")
+    print(f"  Tracking {len(tracked_actors)} actors: {len(all_cars_set)} cars, {len(ball_actor_ids)} ball(s), {len(all_boost)} boost")
     
     player_current_car = {player: None for player in set(car_to_player.values())}
     player_last_active = {player: -1 for player in set(car_to_player.values())}
-    player_boost_stats = {player: {'total_boost_collected': 0, 'boost_pads_collected': 0} for player in set(car_to_player.values())}
     
     car_time_ranges = {}
     for car_id in all_cars_set:
@@ -316,6 +386,9 @@ def build_telemetry_dataframe(replay_data, replay_date):
                 'last_time': actor_rigidbody_data[car_id][-1]['time']
             }
     
+    # Track the current active ball actor across frames
+    current_ball_actor = None
+    
     for frame_idx, frame in enumerate(frames):
         time_stamp = frame.get("time", 0.0)
         adjusted_time = time_stamp - game_start_time
@@ -323,6 +396,7 @@ def build_telemetry_dataframe(replay_data, replay_date):
         if adjusted_time < 0:
             adjusted_time = 0.0
         
+        # Update current_state with all tracked actors
         for updated_actor in frame.get("updated_actors", []):
             act_id = updated_actor["actor_id"]
             if act_id not in tracked_actors:
@@ -351,6 +425,7 @@ def build_telemetry_dataframe(replay_data, replay_date):
                 byte_val = attr_payload.get("Byte", 0)
                 current_state[f"byte_{act_id}"] = byte_val
         
+        # Determine which car each player is using
         for player_name, car_list in player_cars.items():
             current_car = None
             
@@ -366,8 +441,10 @@ def build_telemetry_dataframe(replay_data, replay_date):
                 player_current_car[player_name] = current_car
                 player_last_active[player_name] = frame_idx
         
+        # Build the row
         row = {"frame": frame_idx, "time": adjusted_time}
         
+        # Player data
         for player_name, current_car in player_current_car.items():
             clean_name = re.sub(r'[^a-zA-Z0-9]', '_', player_name)
             clean_name = clean_name.lstrip('_')
@@ -403,13 +480,56 @@ def build_telemetry_dataframe(replay_data, replay_date):
                 row[f"{clean_name}_vel_z"] = 0.0
                 row[f"{clean_name}_boost"] = 0.0
         
-        for ball_id in ball_actors:
-            row["Ball_pos_x"] = current_state.get(f"pos_x_{ball_id}", np.nan)
-            row["Ball_pos_y"] = current_state.get(f"pos_y_{ball_id}", np.nan)
-            row["Ball_pos_z"] = current_state.get(f"pos_z_{ball_id}", np.nan)
-            row["Ball_vel_x"] = current_state.get(f"vel_x_{ball_id}", 0.0)
-            row["Ball_vel_y"] = current_state.get(f"vel_y_{ball_id}", 0.0)
-            row["Ball_vel_z"] = current_state.get(f"vel_z_{ball_id}", 0.0)
+        # Ball data - FIND THE ACTIVE BALL ACTOR FOR THIS FRAME
+        ball_pos_x = 0.0
+        ball_pos_y = 0.0
+        ball_pos_z = 0.0
+        ball_vel_x = 0.0
+        ball_vel_y = 0.0
+        ball_vel_z = 0.0
+        
+        # Check all ball actors to find the active one for this frame
+        active_ball_found = False
+        for ball_id in ball_actor_ids:
+            # Check if this ball actor has position data in current_state
+            pos_x = current_state.get(f"pos_x_{ball_id}", None)
+            if pos_x is not None and not np.isnan(pos_x):
+                # This ball actor has data in this frame
+                ball_pos_x = pos_x
+                ball_pos_y = current_state.get(f"pos_y_{ball_id}", 0.0)
+                ball_pos_z = current_state.get(f"pos_z_{ball_id}", 0.0)
+                ball_vel_x = current_state.get(f"vel_x_{ball_id}", 0.0)
+                ball_vel_y = current_state.get(f"vel_y_{ball_id}", 0.0)
+                ball_vel_z = current_state.get(f"vel_z_{ball_id}", 0.0)
+                current_ball_actor = ball_id  # Update the current ball actor
+                active_ball_found = True
+                break
+        
+        # If no ball actor has data in this frame, keep previous values
+        # (This handles the case where the ball is deleted/recreated)
+        # But we should still try to find the new ball actor in the next frame
+        if not active_ball_found:
+            # Check if any ball actor has data that we missed
+            for ball_id in ball_actor_ids:
+                pos_x = current_state.get(f"pos_x_{ball_id}", None)
+                if pos_x is not None and not np.isnan(pos_x):
+                    # Found a ball actor with data
+                    ball_pos_x = pos_x
+                    ball_pos_y = current_state.get(f"pos_y_{ball_id}", 0.0)
+                    ball_pos_z = current_state.get(f"pos_z_{ball_id}", 0.0)
+                    ball_vel_x = current_state.get(f"vel_x_{ball_id}", 0.0)
+                    ball_vel_y = current_state.get(f"vel_y_{ball_id}", 0.0)
+                    ball_vel_z = current_state.get(f"vel_z_{ball_id}", 0.0)
+                    current_ball_actor = ball_id
+                    active_ball_found = True
+                    break
+        
+        row["Ball_pos_x"] = ball_pos_x
+        row["Ball_pos_y"] = ball_pos_y
+        row["Ball_pos_z"] = ball_pos_z
+        row["Ball_vel_x"] = ball_vel_x
+        row["Ball_vel_y"] = ball_vel_y
+        row["Ball_vel_z"] = ball_vel_z
         
         telemetry_records.append(row)
     
@@ -430,16 +550,12 @@ def build_telemetry_dataframe(replay_data, replay_date):
         if f"{clean_name}_boost" in df.columns:
             boost_col = df[f"{clean_name}_boost"]
             
-            # Boost stats
             avg_boost = boost_col.mean()
             max_boost = boost_col.max()
             min_boost = boost_col.min()
-            boost_usage = boost_col.diff().abs().sum()  # Total boost used
+            boost_usage = boost_col.diff().abs().sum()
             
-            # Time spent with high boost (>80%)
             high_boost_time = (boost_col > 80).sum() / len(df) * 100
-            
-            # Time spent with low boost (<20%)
             low_boost_time = (boost_col < 20).sum() / len(df) * 100
             
             print(f"  {player_name}:")
@@ -459,7 +575,7 @@ def build_telemetry_dataframe(replay_data, replay_date):
         print(f"  - Duration: {df['time'].max():.2f}s")
         print(f"  - Players: {list(player_cars.keys())}")
         print(f"  - Total cars stitched: {len(all_cars_set)}")
-        print(f"  - Ball actors: {list(ball_actors)}")
+        print(f"  - Ball actors: {list(ball_actor_ids)}")
         print(f"  - Columns: {df.columns.tolist()}")
     
     return df

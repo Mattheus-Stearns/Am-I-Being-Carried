@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+# scripts/download_replays.py
+
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -9,20 +10,43 @@ import argparse
 def main():
     parser = argparse.ArgumentParser(description="Download Rocket League replays from BallChasing.com")
     parser.add_argument("--api-key", required=True, help="Your BallChasing.com API key")
-    parser.add_argument("--game-mode", default="3v3", choices=["1v1", "2v2", "3v3"], 
+    parser.add_argument("--game-mode", choices=["1v1", "2v2", "3v3", "hoops", "rumble", "dropshot", "snowday"],
                        help="Game mode to download")
     parser.add_argument("--count", type=int, default=10, help="Number of replays to download")
+    parser.add_argument("--min-rank", choices=["unranked", "bronze_1", "silver_1", "gold_1", "platinum_1", 
+                                             "diamond_1", "champion_1", "grand_champion_1"],
+                       help="Minimum rank to download")
+    parser.add_argument("--max-rank", choices=["unranked", "bronze_1", "silver_1", "gold_1", "platinum_1", 
+                                             "diamond_1", "champion_1", "grand_champion_1"],
+                       help="Maximum rank to download")
+    parser.add_argument("--season", help="Rocket League season (e.g., 14, f1, f2)")
     parser.add_argument("--output-dir", default="data/raw", help="Output directory")
     
     args = parser.parse_args()
     
     downloader = BallChasingDownloader(args.api_key, args.output_dir)
+    
+    total = downloader.get_total_available(
+        game_mode=args.game_mode,
+        min_rank=args.min_rank,
+        max_rank=args.max_rank,
+        season=args.season
+    )
+    print(f"\n📊 Total replays available: {total}")
+    
+    if total == 0:
+        print("❌ No replays found matching your criteria.")
+        return
+    
     downloaded = downloader.download_replays_batch(
         game_mode=args.game_mode,
-        count=args.count
+        count=min(args.count, total),
+        min_rank=args.min_rank,
+        max_rank=args.max_rank,
+        season=args.season
     )
     
-    print(f"\n Downloaded {len(downloaded)} replays to {args.output_dir}")
+    print(f"\n✅ Downloaded {len(downloaded)} replays to {args.output_dir}")
 
 if __name__ == "__main__":
     main()

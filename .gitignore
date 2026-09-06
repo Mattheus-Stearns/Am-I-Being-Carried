@@ -7,3 +7,7 @@ example_responses/
 scripts/__pycache__/
 scripts/*.pyc
 ip_2_geo_db/
+rocket_league_ml/scripts/*.txt
+rocket_league_ml/data/features/*
+rocket_league_ml/data/processed/*
+rocket_league_ml/data/raw/*
