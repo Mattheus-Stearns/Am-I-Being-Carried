@@ -211,6 +211,7 @@ am-i-being-carried/
     │   ├── replay_processor.py           # Process replays with your parser
     │   ├── feature_extractor.py          # Convert to 1-second snapshots
     │   ├── data_storage.py               # Store/load processed data
+    │   ├── ball_tracking_parser.py       # Track objects while parsing occurs
     │   └── config.py                     # Configuration
     ├── data/
     │   ├── raw/                          # Downloaded .replay files
