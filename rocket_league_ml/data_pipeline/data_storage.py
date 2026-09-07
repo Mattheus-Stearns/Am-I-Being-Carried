@@ -9,7 +9,6 @@ class DataStorage:
     """Store and load processed replay data"""
     
     def __init__(self, features_dir: str = "data/features"):
-        # Store path as-is
         self.features_dir = features_dir
         
     def combine_feature_files(self, pattern: str = "*_features.parquet") -> pd.DataFrame:
@@ -59,6 +58,7 @@ class DataStorage:
         # Save sample for inspection
         sample_path = os.path.join(self.features_dir, f"{name}_sample.csv")
         df.head(1000).to_csv(sample_path, index=False)
+        print(f"✅ Saved sample: {sample_path}")
         
         return path
     
